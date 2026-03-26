@@ -2,103 +2,192 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>IT 인프라 표준화 조회시스템</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IT 인프라 표준화 조회시스템 — Live Mapper</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root {
-  --bg: #0d0f14; /* 12라인: 배경색 설정 */
+  --bg: #0d0f14; /* 12라인 배경색 */
   --surface: #13161e;
   --surface2: #1a1e28;
   --border: #252a38;
   --text: #e2e6f0;
-  --primary: #509ee3;
+  --muted: #7a8099;
+  --meta-primary: #509ee3;
+  --meta-accent: #74b9f8;
   --red: #e05c5c;
-  --green: #5ce08a;
   --yellow: #e0c45c;
+  --green: #5ce08a;
 }
-body { background: var(--bg); color: var(--text); font-family: sans-serif; padding: 20px; margin: 0; }
-.container { max-width: 1200px; margin: auto; }
-.upload-zone { background: var(--surface2); border: 2px dashed var(--primary); padding: 30px; text-align: center; border-radius: 12px; cursor: pointer; margin-bottom: 25px; }
-.kpi-row { display: flex; gap: 15px; margin-bottom: 25px; }
-.kpi-card { background: var(--surface); border: 1px solid var(--border); padding: 20px; flex: 1; border-radius: 10px; text-align: center; }
-.kpi-val { font-size: 32px; font-weight: bold; margin-top: 10px; }
-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 10px; overflow: hidden; }
-th { background: #1f2330; padding: 15px; text-align: left; color: var(--primary); border-bottom: 1px solid var(--border); }
-td { padding: 12px 15px; border-bottom: 1px solid var(--border); font-size: 13px; }
-tr:hover { background: rgba(80, 158, 227, 0.05); }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'IBM Plex Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height:100vh; }
+
+/* TOP NAV */
+.top-nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top:0;
+  z-index:100;
+}
+.nav-logo { font-family:'Syne',sans-serif; font-size:15px; font-weight:800; }
+.nav-logo span { color: var(--meta-accent); }
+
+/* UPLOAD ZONE */
+.upload-zone {
+  background: var(--surface2);
+  padding: 40px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  border: 2px dashed var(--meta-primary);
+  margin: 20px;
+  border-radius: 12px;
+}
+.upload-zone:hover { background: #1f2633; }
+
+/* KPI CARDS [cite: 119-130] */
+.main-content { padding: 0 24px 24px; max-width: 1400px; margin: auto; }
+.meta-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.meta-kpi {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+.kpi-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+.kpi-value { font-size: 32px; font-weight: 700; font-family: 'Syne'; }
+
+/* TABLE [cite: 207-221] */
+.table-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #1f2330; padding: 14px; text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+td { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+tr:hover { background: rgba(80,158,227,0.05); }
+.mono { font-family: 'JetBrains Mono', monospace; }
+.badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <h1 style="color:var(--primary); font-size:22px; margin-bottom:20px;">📊 IT 인프라 자산 통합 대시보드</h1>
-  
-  <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
-    <p>📂 <b>인프라 관리 엑셀 파일</b>을 업로드하여 대시보드를 실시간 매핑하세요.</p>
-    <input type="file" id="fileInput" style="display:none" accept=".xlsx, .xls">
-  </div>
+<nav class="top-nav">
+  <div class="nav-logo">IT인프라 <span>표준화조회 시스템</span></div>
+  <div style="margin-left:auto; font-size:12px; color:var(--muted);" id="timer">실시간 엑셀 매핑 모드</div>
+</nav>
 
-  <div class="kpi-row">
-    <div class="kpi-card"><div>전체 시스템</div><div class="kpi-val" id="total">0</div></div>
-    <div class="kpi-card"><div>업그레이드 필요</div><div class="kpi-val" id="upgrade" style="color:var(--red)">0</div></div>
-    <div class="kpi-card"><div>표준 준수율</div><div class="kpi-val" id="rate" style="color:var(--green)">0%</div></div>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>장비명(Hostname)</th>
-        <th>구분</th>
-        <th>현재 버전</th>
-        <th>권장 버전</th>
-        <th>상태</th>
-      </tr>
-    </thead>
-    <tbody id="list">
-      <tr><td colspan="5" style="text-align:center; padding:80px; color:var(--text);">데이터가 없습니다. 파일을 업로드해 주세요.</td></tr>
-    </tbody>
-  </table>
+<div class="upload-zone" onclick="document.getElementById('excelFile').click()">
+  <p style="font-size:16px;">📂 <b>관리대장 엑셀 파일</b>을 업로드하여 대시보드를 활성화하세요.</p>
+  <p style="font-size:12px; color:var(--muted); margin-top:8px;">서버에 저장되지 않으며 브라우저 내에서만 처리됩니다.</p>
+  <input type="file" id="excelFile" style="display:none" accept=".xlsx, .xls">
 </div>
 
+<main class="main-content">
+  <div class="meta-kpi-row">
+    <div class="meta-kpi">
+      <div class="kpi-label">전체 자산</div>
+      <div class="kpi-value" id="total-val" style="color:var(--meta-accent)">0</div>
+    </div>
+    <div class="meta-kpi">
+      <div class="kpi-label">업그레이드 필요</div>
+      <div class="kpi-value" id="upgrade-val" style="color:var(--red)">0</div>
+    </div>
+    <div class="meta-kpi">
+      <div class="kpi-label">EOS/EOL 위험</div>
+      <div class="kpi-value" id="eos-val" style="color:var(--yellow)">0</div>
+    </div>
+    <div class="meta-kpi">
+      <div class="kpi-label">표준 준수율</div>
+      <div class="kpi-value" id="rate-val" style="color:var(--green)">0%</div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>장비명(Hostname) [cite: 351]</th>
+          <th>구분 [cite: 215]</th>
+          <th>현재 버전 [cite: 216]</th>
+          <th>권고 버전 [cite: 217]</th>
+          <th>상태 [cite: 221]</th>
+          <th>담당자 [cite: 220]</th>
+        </tr>
+      </thead>
+      <tbody id="res-list">
+        <tr><td colspan="6" style="text-align:center; padding:100px; color:var(--muted);">데이터가 없습니다. 엑셀 파일을 업로드해주세요.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
 <script>
-document.getElementById('fileInput').addEventListener('change', function(e) {
+document.getElementById('excelFile').addEventListener('change', function(e) {
+  const file = e.target.files[0];
   const reader = new FileReader();
-  reader.onload = (event) => {
+
+  reader.onload = function(event) {
     const data = new Uint8Array(event.target.result);
     const workbook = XLSX.read(data, {type: 'array'});
-    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-    renderData(json);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet);
+    
+    renderDashboard(json);
   };
-  reader.readAsArrayBuffer(e.target.files[0]);
+  reader.readAsArrayBuffer(file);
 });
 
-function renderData(data) {
-  let upgradeCount = 0;
-  let compliant = 0;
-  
-  document.getElementById('list').innerHTML = data.map(row => {
+function renderDashboard(data) {
+  const tbody = document.getElementById('res-list');
+  let upgradeCnt = 0;
+  let eosCnt = 0;
+  let compliantCnt = 0;
+
+  tbody.innerHTML = data.map(row => {
+    // 엑셀 컬럼 매핑 (사용자 파일 헤더 기준) 
     const name = row['장비명(Hostname)'] || row['Hostname'] || '-';
     const type = row['장비 구분'] || row['구분'] || '-';
     const cur = String(row['OS/NOS 현재버전'] || row['현재버전'] || '');
     const std = String(row['OS/NOS 권고버전'] || row['권고버전'] || '');
-    
-    const isOk = (cur === std && cur !== '');
-    if(!isOk) upgradeCount++; else compliant++;
-    
-    return `<tr>
-      <td><b>${name}</b></td>
-      <td>${type}</td>
-      <td style="color:${!isOk ? 'var(--yellow)' : ''}">${cur}</td>
-      <td>${std}</td>
-      <td style="color:${isOk ? 'var(--green)' : 'var(--red)'}">${isOk ? '● 표준준수' : '● 미준수'}</td>
-    </tr>`;
+    const eos = String(row['EOS상태'] || row['상태'] || '');
+    const manager = row['담당자'] || '-';
+
+    const mismatch = (cur !== std && std !== '');
+    if(mismatch) upgradeCnt++;
+    if(cur === std && cur !== '') compliantCnt++;
+    if(eos.includes('경과') || eos.includes('위험')) eosCnt++;
+
+    return `
+      <tr>
+        <td style="font-weight:600;">${name}</td>
+        <td style="color:var(--muted)">${type}</td>
+        <td class="mono" style="color:${mismatch ? 'var(--yellow)' : 'white'}">${cur}</td>
+        <td class="mono" style="color:var(--green)">${std}</td>
+        <td>
+          <span class="badge" style="background:${mismatch ? 'rgba(224,196,92,0.1)' : 'rgba(92,224,138,0.1)'}; color:${mismatch ? 'var(--yellow)' : 'var(--green)'}">
+            ${mismatch ? '업그레이드 필요' : '표준 준수'}
+          </span>
+        </td>
+        <td>${manager}</td>
+      </tr>
+    `;
   }).join('');
 
-  document.getElementById('total').innerText = data.length;
-  document.getElementById('upgrade').innerText = upgradeCount;
-  document.getElementById('rate').innerText = data.length > 0 ? Math.round((compliant/data.length)*100) + '%' : '0%';
+  // 요약 지표 업데이트 [cite: 75-81, 119-130]
+  document.getElementById('total-val').innerText = data.length;
+  document.getElementById('upgrade-val').innerText = upgradeCnt;
+  document.getElementById('eos-val').innerText = eosCnt;
+  document.getElementById('rate-val').innerText = data.length > 0 ? Math.round((compliantCnt/data.length)*100) + '%' : '0%';
 }
+
+setInterval(() => {
+  document.getElementById('timer').innerText = "Live Update: " + new Date().toLocaleString();
+}, 1000);
 </script>
 </body>
 </html>
