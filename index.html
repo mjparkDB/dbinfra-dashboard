@@ -13,16 +13,17 @@
   --bg: #0d0f14; --surface: #13161e; --surface2: #1a1e28;
   --border: #252a38; --text: #e2e6f0; --muted: #7a8099;
   --meta-primary: #509ee3; --meta-accent: #74b9f8;
-  --red: #e05c5c; --yellow: #e0c45c; --green: #5ce08a; --orange: #e0935c;
+  --red: #e05c5c; --yellow: #e0c45c; --green: #5ce08a;
 }
 * { margin:0; padding:0; box-sizing:border-box; outline:none; }
-body { font-family: 'IBM Plex Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height:100vh; padding-bottom:40px; }
+body { font-family: 'IBM Plex Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height:100vh; padding-bottom:50px;}
 
-/* 네비게이션 & 업로드 */
 .top-nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 28px; height: 58px; display: flex; align-items: center; justify-content: space-between; position: sticky; top:0; z-index:100; }
 .nav-logo { font-family:'Syne',sans-serif; font-size:16px; font-weight:800; letter-spacing:0.5px; }
 .nav-logo span { color: var(--meta-accent); }
 .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+/* 업로드 카드 */
 .upload-card { background: var(--surface2); border: 2px dashed var(--meta-primary); border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 24px; cursor: pointer; transition: 0.2s; }
 .upload-card:hover { background: #1f2633; border-style: solid; }
 
@@ -48,13 +49,13 @@ tr:hover { background: rgba(80,158,227,0.05); }
 
 <nav class="top-nav">
   <div class="nav-logo">IT INFRA <span>STANDARDIZATION</span></div>
-  <div id="clock" style="font-family:'JetBrains Mono'; font-size:12px; color:var(--muted);">LIVE MAPPER</div>
+  <div id="clock" style="font-family:'JetBrains Mono'; font-size:12px; color:var(--muted);">LIVE DASHBOARD</div>
 </nav>
 
 <div class="container">
     <div class="upload-card" onclick="document.getElementById('excelFile').click()">
-        <h2 style="font-size:18px; color:var(--meta-accent); margin-bottom:10px;">📊 네트워크 자산 관리대장 업로드 (스마트 매핑 엔진 탑재)</h2>
-        <p style="font-size:13px; color:var(--muted);">항목명이 정확하지 않아도 알아서 '현재버전', '권고버전', 'EOS상태'를 찾아 매핑합니다.</p>
+        <h2 style="font-size:18px; color:var(--meta-accent); margin-bottom:10px;">📂 엑셀(CSV) 업로드 (모든 오류 해결판)</h2>
+        <p style="font-size:13px; color:var(--muted);">보내주신 네트워크 자산 CSV 파일을 클릭해서 업로드 해주세요.</p>
         <input type="file" id="excelFile" style="display:none" accept=".xlsx, .xls, .csv">
     </div>
 
@@ -71,20 +72,19 @@ tr:hover { background: rgba(80,158,227,0.05); }
     </div>
 
     <div class="table-card">
-        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600;">🔍 자산 상세 현황 및 조치 우선순위</div>
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600;">🔍 자산 상세 현황 및 버전 매핑 결과</div>
         <table>
             <thead>
                 <tr>
-                    <th>우선순위</th>
                     <th>HOSTNAME / 장비명</th>
-                    <th>구분 / 제조사</th>
+                    <th>구분 / 벤더</th>
                     <th>현재 버전</th>
                     <th>권고 버전</th>
                     <th>상태</th>
                 </tr>
             </thead>
             <tbody id="res-list">
-                <tr><td colspan="6" style="text-align:center; padding:100px; color:var(--muted);">위의 엑셀/CSV 파일을 업로드해주세요.</td></tr>
+                <tr><td colspan="5" style="text-align:center; padding:100px; color:var(--muted);">위 영역을 눌러 CSV 파일을 업로드해주세요.</td></tr>
             </tbody>
         </table>
     </div>
@@ -98,88 +98,93 @@ document.getElementById('excelFile').addEventListener('change', function(e) {
     reader.onload = (event) => {
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, {type: 'array'});
-        const raw = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+        // 빈 셀도 ''로 읽도록 설정
+        const raw = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1, defval: ''});
         
-        // 데이터가 시작되는 헤더 행 자동 탐색
-        let hIdx = 0;
+        // 1. 헤더 행 정확히 찾기
+        let hIdx = -1;
         for(let i=0; i<Math.min(10, raw.length); i++) {
-            const rowStr = (raw[i] || []).join('').replace(/\s/g, '');
-            if(rowStr.includes('장비') || rowStr.includes('hostname') || rowStr.includes('버전') || rowStr.includes('상태')) { 
+            const rowStr = raw[i].join('').replace(/\s/g, '').toLowerCase();
+            if(rowStr.includes('장비명') || rowStr.includes('hostname')) { 
                 hIdx = i; break; 
             }
         }
 
-        const headers = raw[hIdx];
+        if(hIdx === -1) {
+            alert("데이터를 찾을 수 없습니다. 파일을 확인해주세요.");
+            return;
+        }
+
+        // 2. 엑셀 헤더의 모든 공백 및 줄바꿈(\n) 강제 제거 (핵심 해결책)
+        const headers = raw[hIdx].map(h => String(h).replace(/[\s\r\n]+/g, '').toLowerCase());
+        
         const jsonData = [];
         for(let i=hIdx+1; i<raw.length; i++) {
-            if(!raw[i] || raw[i].length === 0) continue;
-            let obj = {};
-            headers.forEach((h, idx) => { if(h) obj[h.toString().trim()] = raw[i][idx]; });
+            if(raw[i].join('').trim() === '') continue; // 빈 줄 무시
             
-            // 빈 행 거르기
-            if(Object.values(obj).join('').trim() !== '') jsonData.push(obj);
+            let obj = {};
+            headers.forEach((h, idx) => { if(h) obj[h] = raw[i][idx]; });
+            jsonData.push(obj);
         }
-        processFuzzyData(jsonData);
+        processData(jsonData);
     };
     reader.readAsArrayBuffer(e.target.files[0]);
 });
 
-function processFuzzyData(data) {
+function processData(data) {
     const list = document.getElementById('res-list');
     let upCnt = 0, okCnt = 0, eosCnt = 0;
     const vendorMap = {};
 
     list.innerHTML = data.map(row => {
-        let name='-', type='-', vendor='-', cur='', std='', eosStatus='';
+        // 제거된 헤더명으로 데이터 100% 매핑
+        const host = row['장비명(hostname)'] || row['장비명'] || '-';
+        const cat = row['장비구분'] || row['구분'] || '-';
+        const vendor = row['벤더'] || row['제조사'] || '-';
+        const cur = String(row['os/nos현재버전'] || row['현재버전'] || '').trim();
+        const std = String(row['os/nos권고버전'] || row['권고버전'] || '').trim();
+        const fwNeed = String(row['fw업그레이드필요'] || '').trim();
+        const eos1 = String(row['장비eos'] || '').trim();
+        const eos2 = String(row['os/sweos'] || '').trim();
 
-        // 핵심 해결책: 퍼지 매핑 (Fuzzy Mapping)
-        // 컬럼명에 특수문자나 띄어쓰기가 있어도 '핵심 단어'만 있으면 자동으로 연결함
-        for(let key in row) {
-            let k = key.replace(/\s+/g, '').toLowerCase();
-            let val = String(row[key] || '').trim();
-            
-            if(k.includes('장비명') || k.includes('hostname') || k.includes('호스트명')) name = val;
-            else if(k.includes('구분') || k.includes('유형')) type = val;
-            else if(k.includes('제조사') || k.includes('벤더')) vendor = val;
-            else if(k.includes('현재')) cur = val;
-            else if(k.includes('권고') || k.includes('표준')) std = val;
-            else if(k.includes('eos') || k.includes('상태')) eosStatus = val;
-        }
+        // 상태 로직 계산
+        let isMismatch = false;
+        if(cur !== std && cur !== '' && std !== '') isMismatch = true;
+        if(fwNeed === '필요') isMismatch = true;
 
-        const isMismatch = (cur !== std && std !== '' && std !== 'undefined');
-        const isEos = eosStatus.includes('경과') || eosStatus.includes('위험') || eosStatus.includes('임박');
+        let isEos = false;
+        // EOS 날짜가 오늘보다 과거이거나 6개월 이내면 위험(EOS) 처리
+        const checkEosDate = (dStr) => {
+            if(!dStr || dStr === '-') return false;
+            let d = new Date(dStr);
+            if(isNaN(d)) return false;
+            return (d - new Date()) / (1000 * 60 * 60 * 24) < 180;
+        };
+        if(checkEosDate(eos1) || checkEosDate(eos2)) isEos = true;
 
         if(isMismatch) upCnt++;
-        if(cur === std && cur !== '') okCnt++;
+        if(!isMismatch && cur !== '') okCnt++;
         if(isEos) eosCnt++;
-        if(vendor !== '-') vendorMap[vendor] = (vendorMap[vendor] || 0) + 1;
-
-        // 추가 기능: 업그레이드 우선순위 자동 산정
-        let priorityBadge = '';
-        let statusBadge = '';
         
-        if(isEos) {
-            priorityBadge = `<span class="badge" style="background:var(--red); color:white;">1순위 (긴급)</span>`;
-            statusBadge = `<span class="badge" style="background:rgba(224,92,92,0.15); color:var(--red);">● 위험/EOS</span>`;
-        } else if(isMismatch) {
-            priorityBadge = `<span class="badge" style="background:var(--orange); color:white;">2순위 (경고)</span>`;
-            statusBadge = `<span class="badge" style="background:rgba(224,196,92,0.15); color:var(--yellow);">● 패치 필요</span>`;
-        } else {
-            priorityBadge = `<span class="badge" style="background:transparent; color:var(--muted); border:1px solid var(--border);">3순위 (양호)</span>`;
-            statusBadge = `<span class="badge" style="background:rgba(92,224,138,0.15); color:var(--green);">● 표준 준수</span>`;
+        if(vendor !== '-' && vendor !== '') {
+            vendorMap[vendor] = (vendorMap[vendor] || 0) + 1;
         }
 
+        // 뱃지 색상 부여
+        let badge = `<span class="badge" style="background:rgba(92,224,138,0.15); color:var(--green);">● 표준 준수</span>`;
+        if(isEos) badge = `<span class="badge" style="background:rgba(224,92,92,0.15); color:var(--red);">● 위험/EOS</span>`;
+        else if(isMismatch) badge = `<span class="badge" style="background:rgba(224,196,92,0.15); color:var(--yellow);">● 패치 필요</span>`;
+
         return `<tr>
-            <td>${priorityBadge}</td>
-            <td style="font-weight:600;">${name}</td>
-            <td style="color:var(--muted)">${type} / ${vendor}</td>
-            <td class="mono" style="color:${isMismatch ? 'var(--yellow)' : 'white'}">${cur}</td>
-            <td class="mono" style="color:var(--green)">${std}</td>
-            <td>${statusBadge}</td>
+            <td style="font-weight:600;">${host}</td>
+            <td style="color:var(--muted)">${cat} / ${vendor}</td>
+            <td class="mono" style="color:${isMismatch ? 'var(--yellow)' : 'white'}">${cur || '-'}</td>
+            <td class="mono" style="color:var(--green)">${std || '-'}</td>
+            <td>${badge}</td>
         </tr>`;
     }).join('');
 
-    // KPI 갱신
+    // KPI 지표 갱신
     document.getElementById('total').innerText = data.length;
     document.getElementById('upgrade').innerText = upCnt;
     document.getElementById('eos').innerText = eosCnt;
@@ -195,18 +200,18 @@ function updateCharts(vMap, ok, up) {
     const ctx1 = document.getElementById('barChart').getContext('2d');
     charts.bar = new Chart(ctx1, {
         type: 'bar',
-        data: { labels: Object.keys(vMap), datasets: [{ label: '제조사별 자산', data: Object.values(vMap), backgroundColor: '#509ee3', borderRadius:4 }] },
+        data: { labels: Object.keys(vMap), datasets: [{ label: '장비 벤더 분포', data: Object.values(vMap), backgroundColor: '#509ee3', borderRadius:4 }] },
         options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#252a38' }, ticks: { color: '#7a8099' } }, x: { grid: { display: false }, ticks: { color: '#7a8099' } } } }
     });
 
     const ctx2 = document.getElementById('pieChart').getContext('2d');
     charts.pie = new Chart(ctx2, {
         type: 'doughnut',
-        data: { labels: ['표준 준수', '미준수'], datasets: [{ data: [ok, up], backgroundColor: ['#5ce08a', '#e0c45c'], borderWidth: 0 }] },
+        data: { labels: ['표준 준수', '미준수(패치필요)'], datasets: [{ data: [ok, up], backgroundColor: ['#5ce08a', '#e0c45c'], borderWidth: 0 }] },
         options: { maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position:'right', labels: { color: '#e2e6f0' } } } }
     });
 }
-setInterval(() => { document.getElementById('clock').innerText = "LIVE MAPPER | " + new Date().toLocaleString(); }, 1000);
+setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleString(); }, 1000);
 </script>
 </body>
 </html>
