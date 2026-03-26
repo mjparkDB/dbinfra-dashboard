@@ -3,228 +3,159 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IT 인프라 표준화 조회시스템 — 통합 대시보드</title>
+<title>IT 인프라 표준화 조회시스템 — NocoDB vs Metabase 비교</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-/* ──────────────────────────────────────
-   [첨부파일 디자인 시스템 계승]
-   ────────────────────────────────────── */
+/* 디자인 100% 계승 */
 :root {
-  --bg: #0d0f14;
-  --surface: #13161e;
-  --surface2: #1a1e28;
-  --border: #252a38;
-  --text: #e2e6f0;
-  --muted: #7a8099;
-  --meta-primary: #509ee3;
-  --meta-accent: #74b9f8;
-  --red: #e05c5c;
-  --yellow: #e0c45c;
-  --green: #5ce08a;
+  --bg: #0d0f14; --surface: #13161e; --surface2: #1a1e28;
+  --border: #252a38; --border2: #2e3448; --text: #e2e6f0;
+  --muted: #7a8099; --noco-primary: #0f9b72; --noco-accent: #13c79a;
+  --meta-primary: #509ee3; --meta-accent: #74b9f8;
+  --red: #e05c5c; --yellow: #e0c45c; --green: #5ce08a;
+  --purple: #a78bfa; --radius: 10px;
 }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'IBM Plex Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height:100vh; overflow-x:hidden; }
 
-* { margin:0; padding:0; box-sizing:border-box; outline:none; }
-body { 
-    background: var(--bg); 
-    color: var(--text); 
-    font-family: 'IBM Plex Sans KR', sans-serif; 
-    overflow-x: hidden;
-}
-
-/* TOP NAV (첨부파일 스타일) */
-.nav {
-    height: 58px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 24px;
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-}
-.nav-logo { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+/* TOP NAV */
+.top-nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 28px; height: 58px; display: flex; align-items: center; gap: 24px; position: sticky; top:0; z-index:100; }
+.nav-logo { font-family:'Syne',sans-serif; font-size:15px; font-weight:800; letter-spacing:0.5px; color:var(--text); }
 .nav-logo span { color: var(--meta-accent); }
-.nav-right { margin-left: auto; display: flex; align-items: center; gap: 20px; font-size: 12px; color: var(--muted); font-family: 'JetBrains Mono'; }
+.nav-tabs { display:flex; gap:4px; margin-left:20px; }
+.nav-tab { padding: 7px 18px; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--muted); border: 1px solid transparent; }
+.nav-tab.active-meta { color: var(--meta-accent); background: rgba(80,158,227,0.12); border-color: rgba(80,158,227,0.3); }
 
-/* 메인 대시보드 레이아웃 */
-.container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+/* MAIN LAYOUT */
+.main { display:flex; height: calc(100vh - 58px); }
+.meta-sidebar { width:200px; border-right:1px solid var(--border); background:#090c13; padding:12px 0; }
+.meta-sidebar-section { padding:6px 14px 2px; font-size:10px; color:#2a3a5a; font-weight:600; letter-spacing:1.2px; text-transform:uppercase; margin-top:8px; }
+.meta-sidebar-item { padding:7px 14px 7px 20px; font-size:12.5px; color:#4a6a9a; cursor:pointer; border-left:2px solid transparent; }
+.meta-sidebar-item.active { color:var(--meta-accent); background:rgba(80,158,227,0.12); border-left-color:var(--meta-accent); font-weight:500; }
 
-/* 업로드 바 (상단 액션) */
-.action-bar {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 24px;
-    text-align: center;
-    border-top: 3px solid var(--meta-primary);
-}
-.upload-btn {
-    background: rgba(80, 158, 227, 0.1);
-    color: var(--meta-accent);
-    border: 1px solid var(--meta-primary);
-    padding: 12px 32px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.upload-btn:hover { background: var(--meta-primary); color: white; }
+/* CONTENT */
+.meta-content { flex:1; overflow:auto; padding:16px; display:flex; flex-direction:column; gap:14px; }
+.upload-action { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; border-top: 3px solid var(--meta-primary); }
+.ph-btn { background:rgba(80,158,227,0.12); color:var(--meta-accent); border:1px solid rgba(80,158,227,0.3); padding:8px 24px; border-radius:6px; cursor:pointer; font-weight:600; }
 
-/* KPI CARD GRID */
-.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-.kpi-card {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    padding: 24px;
-    border-radius: 12px;
-    position: relative;
-}
-.kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background: var(--meta-primary); border-radius:12px 12px 0 0; opacity:0.5; }
-.kpi-label { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: 0.5px; margin-bottom: 12px; }
-.kpi-value { font-size: 36px; font-weight: 700; font-family: 'Syne'; }
+/* KPI CARDS [cite: 119-130] */
+.meta-kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.meta-kpi { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; position:relative; overflow:hidden; }
+.meta-kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--meta-primary); }
+.kpi-label { font-size:11px; color:var(--muted); font-weight:500; margin-bottom:8px; }
+.kpi-value { font-size:28px; font-weight:700; font-family:'Syne',sans-serif; }
 
-/* TABLE 스타일 (첨부파일 리스트 스타일) */
-.data-card {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-}
-.card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-.card-title { font-size: 14px; font-weight: 600; }
-
-table { width: 100%; border-collapse: collapse; }
-th { background: #1a1e28; padding: 14px 20px; text-align: left; font-size: 11px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
-td { padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 13px; }
-tr:hover { background: rgba(255,255,255,0.02); }
-
-.badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
-.mono { font-family: 'JetBrains Mono'; }
+/* TABLE CARD [cite: 207-221] */
+.meta-card { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.meta-card-header { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; }
+.meta-card-title { font-size:13px; font-weight:600; }
+.meta-table { width:100%; border-collapse:collapse; font-size:12px; }
+.meta-table thead th { padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:600; border-bottom:1px solid var(--border); background:var(--surface); }
+.meta-table tbody td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.04); }
+.badge { padding:3px 8px; border-radius:20px; font-size:11px; font-weight:600; }
 </style>
 </head>
 <body>
 
-<nav class="nav">
-    <div class="nav-logo">IT INFRA <span>STANDARDIZATION</span></div>
-    <div class="nav-right" id="clock">Loading...</div>
+<nav class="top-nav">
+  <div class="nav-logo">IT인프라 <span>표준화조회</span></div>
+  <div class="nav-tabs">
+    <div class="nav-tab active-meta">📊 Metabase 실시간 모드</div>
+  </div>
+  <div style="margin-left:auto; font-size:12px; color:var(--muted); font-family:'JetBrains Mono';" id="live-timer">2026-03-26 15:41</div>
 </nav>
 
-<div class="container">
-    <div class="action-bar">
-        <h2 style="font-size: 18px; margin-bottom: 8px;">📊 인프라 자산 통합 대시보드</h2>
-        <p style="color:var(--muted); font-size: 13px; margin-bottom: 20px;">엑셀 파일을 업로드하면 아래의 디자인에 실시간으로 데이터가 매핑됩니다.</p>
-        <button class="upload-btn" onclick="document.getElementById('file-input').click()">엑셀 데이터 동기화</button>
-        <input type="file" id="file-input" style="display:none" accept=".xlsx, .xls">
+<div class="main">
+  <div class="meta-sidebar">
+    <div class="meta-sidebar-section">대시보드</div>
+    <div class="meta-sidebar-item active">📊 인프라 현황 종합</div>
+    <div class="meta-sidebar-item">⚠️ EOL 모니터링</div>
+    <div class="meta-sidebar-section" style="margin-top:16px;">데이터소스</div>
+    <div class="meta-sidebar-item">🗄 엑셀 데이터 매퍼</div>
+  </div>
+
+  <div class="meta-content">
+    <div class="upload-action">
+        <p style="margin-bottom:12px; font-size:14px; color:var(--muted);">관리대장 엑셀을 업로드하면 첨부파일의 디자인에 실시간 매핑됩니다.</p>
+        <button class="ph-btn" onclick="document.getElementById('excelFile').click()">📂 엑셀 데이터 동기화</button>
+        <input type="file" id="excelFile" style="display:none" accept=".xlsx, .xls">
     </div>
 
-    <div class="kpi-grid">
-        <div class="kpi-card">
-            <div class="kpi-label">TOTAL ASSETS</div>
-            <div class="kpi-value" id="total" style="color:var(--meta-accent)">0</div>
-        </div>
-        <div class="kpi-card" style="--meta-primary: var(--yellow)">
-            <div class="kpi-label">UPGRADE NEEDED</div>
-            <div class="kpi-value" id="upgrade" style="color:var(--yellow)">0</div>
-        </div>
-        <div class="kpi-card" style="--meta-primary: var(--red)">
-            <div class="kpi-label">EOS/EOL RISK</div>
-            <div class="kpi-value" id="eos" style="color:var(--red)">0</div>
-        </div>
-        <div class="kpi-card" style="--meta-primary: var(--green)">
-            <div class="kpi-label">COMPLIANCE RATE</div>
-            <div class="kpi-value" id="rate" style="color:var(--green)">0%</div>
-        </div>
+    <div class="meta-kpi-row">
+      <div class="meta-kpi"><div class="kpi-label">총 관리 자산</div><div class="kpi-value" id="total" style="color:var(--meta-accent)">0</div></div>
+      <div class="meta-kpi" style="--meta-primary: var(--green)"><div class="kpi-label">표준화 준수율</div><div class="kpi-value" id="rate" style="color:var(--green)">0%</div></div>
+      <div class="meta-kpi" style="--meta-primary: var(--red)"><div class="kpi-label">EOL 임박 장비</div><div class="kpi-value" id="eos" style="color:var(--red)">0</div></div>
+      <div class="meta-kpi" style="--meta-primary: var(--yellow)"><div class="kpi-label">업그레이드 필요</div><div class="kpi-value" id="upgrade" style="color:var(--yellow)">0</div></div>
     </div>
 
-    <div class="data-card">
-        <div class="card-header">
-            <div class="card-title">🔍 실시간 분석 결과</div>
-            <div id="file-name" style="font-size:12px; color:var(--muted)">No file selected</div>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <th>HOSTNAME / 명칭</th>
-                    <th>유형</th>
-                    <th>현재 버전</th>
-                    <th>권고 버전</th>
-                    <th>상태</th>
-                    <th>담당자</th>
-                </tr>
-            </thead>
-            <tbody id="list-body">
-                <tr><td colspan="6" style="text-align:center; padding:100px; color:var(--muted);">관리대장 파일을 업로드하여 대시보드를 활성화하세요.</td></tr>
-            </tbody>
-        </table>
+    <div class="meta-card">
+      <div class="meta-card-header"><div class="meta-card-title">🔍 버전 비표준 장비 상세 목록</div></div>
+      <table class="meta-table">
+        <thead>
+          <tr>
+            <th>장비명</th>
+            <th>유형</th>
+            <th>현재 버전</th>
+            <th>표준 버전</th>
+            <th>상태</th>
+            <th>담당자</th>
+          </tr>
+        </thead>
+        <tbody id="res-list">
+          <tr><td colspan="6" style="text-align:center; padding:100px; color:var(--muted);">파일을 업로드하면 첨부파일 디자인 리스트가 생성됩니다.</td></tr>
+        </tbody>
+      </table>
     </div>
+  </div>
 </div>
 
 <script>
-// 엑셀 로직
-document.getElementById('file-input').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if(!file) return;
-    document.getElementById('file-name').innerText = "Selected: " + file.name;
-
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, {type: 'array'});
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(firstSheet);
-        render(json);
-    };
-    reader.readAsArrayBuffer(file);
+document.getElementById('excelFile').addEventListener('change', function(e) {
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const workbook = XLSX.read(new Uint8Array(event.target.result), {type: 'array'});
+    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+    renderDashboard(json);
+  };
+  reader.readAsArrayBuffer(e.target.files[0]);
 });
 
-function render(data) {
-    const tbody = document.getElementById('list-body');
-    let upCnt = 0, eosCnt = 0, okCnt = 0;
+function renderDashboard(data) {
+  const tbody = document.getElementById('res-list');
+  let up = 0, eos = 0, ok = 0;
 
-    tbody.innerHTML = data.map(row => {
-        const name = row['장비명(Hostname)'] || row['Hostname'] || row['장비명'] || '-';
-        const type = row['장비 구분'] || row['구분'] || '-';
-        const cur = String(row['OS/NOS 현재버전'] || row['현재버전'] || '');
-        const std = String(row['OS/NOS 권고버전'] || row['권고버전'] || '');
-        const eos = String(row['EOS상태'] || row['상태'] || '');
-        const manager = row['담당자'] || '-';
+  tbody.innerHTML = data.map(row => {
+    // 엑셀 컬럼 매핑 [cite: 100-102]
+    const name = row['장비명(Hostname)'] || row['Hostname'] || '-';
+    const type = row['장비 구분'] || row['구분'] || '-';
+    const cur = String(row['OS/NOS 현재버전'] || row['현재버전'] || '');
+    const std = String(row['OS/NOS 권고버전'] || row['권고버전'] || '');
+    const status = String(row['EOS상태'] || row['상태'] || '');
+    
+    const isMismatch = (cur !== std && std !== '');
+    if(isMismatch) up++; else if(cur !== '') ok++;
+    if(status.includes('경과') || status.includes('위험')) eos++;
 
-        const isMismatch = (cur !== std && std !== '');
-        if(isMismatch) upCnt++; else if(cur !== '') okCnt++;
-        if(eos.includes('경과') || eos.includes('위험')) eosCnt++;
+    return `
+      <tr>
+        <td style="color:var(--text); font-weight:500;">${name}</td>
+        <td><span style="background:rgba(100,120,180,0.12); color:#8899cc; padding:2px 6px; border-radius:4px;">${type}</span></td>
+        <td style="color:var(--yellow); font-family:'JetBrains Mono';">${cur}</td>
+        <td style="color:var(--green); font-family:'JetBrains Mono';">${std}</td>
+        <td><span class="badge" style="background:${isMismatch ? 'rgba(224,196,92,0.12)' : 'rgba(92,224,138,0.12)'}; color:${isMismatch ? 'var(--yellow)' : 'var(--green)'}">${isMismatch ? '● 패치필요' : '● 정상'}</span></td>
+        <td style="color:var(--muted)">${row['담당자'] || '-'}</td>
+      </tr>
+    `;
+  }).join('');
 
-        return `
-            <tr>
-                <td style="font-weight:600;">${name}</td>
-                <td style="color:var(--muted)">${type}</td>
-                <td class="mono" style="color:${isMismatch ? 'var(--yellow)' : 'white'}">${cur}</td>
-                <td class="mono" style="color:var(--green)">${std}</td>
-                <td>
-                    <span class="badge" style="background:${isMismatch ? 'rgba(224,196,92,0.1)' : 'rgba(92,224,138,0.1)'}; color:${isMismatch ? 'var(--yellow)' : 'var(--green)'}">
-                        ● ${isMismatch ? '패치 필요' : '정상'}
-                    </span>
-                </td>
-                <td style="color:var(--muted)">${manager}</td>
-            </tr>
-        `;
-    }).join('');
-
-    document.getElementById('total').innerText = data.length;
-    document.getElementById('upgrade').innerText = upCnt;
-    document.getElementById('eos').innerText = eosCnt;
-    document.getElementById('rate').innerText = data.length > 0 ? Math.round((okCnt/data.length)*100) + '%' : '0%';
+  document.getElementById('total').innerText = data.length;
+  document.getElementById('upgrade').innerText = up;
+  document.getElementById('eos').innerText = eos;
+  document.getElementById('rate').innerText = data.length > 0 ? Math.round((ok/data.length)*100)+'%' : '0%';
 }
 
-// 시계 업데이트
-function updateClock() {
-    const now = new Date();
-    document.getElementById('clock').innerText = "LIVE MAPPER | " + now.toLocaleString();
-}
-setInterval(updateClock, 1000);
-updateClock();
+setInterval(() => { document.getElementById('live-timer').innerText = new Date().toLocaleString(); }, 1000);
 </script>
 </body>
 </html>
