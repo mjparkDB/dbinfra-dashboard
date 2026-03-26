@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>IT 인프라 표준화 조회시스템</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg: #0d0f14; /* 12라인: 배경색 설정 */
+  --surface: #13161e;
+  --surface2: #1a1e28;
+  --border: #252a38;
+  --text: #e2e6f0;
+  --primary: #509ee3;
+  --red: #e05c5c;
+  --green: #5ce08a;
+  --yellow: #e0c45c;
+}
+body { background: var(--bg); color: var(--text); font-family: sans-serif; padding: 20px; margin: 0; }
+.container { max-width: 1200px; margin: auto; }
+.upload-zone { background: var(--surface2); border: 2px dashed var(--primary); padding: 30px; text-align: center; border-radius: 12px; cursor: pointer; margin-bottom: 25px; }
+.kpi-row { display: flex; gap: 15px; margin-bottom: 25px; }
+.kpi-card { background: var(--surface); border: 1px solid var(--border); padding: 20px; flex: 1; border-radius: 10px; text-align: center; }
+.kpi-val { font-size: 32px; font-weight: bold; margin-top: 10px; }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 10px; overflow: hidden; }
+th { background: #1f2330; padding: 15px; text-align: left; color: var(--primary); border-bottom: 1px solid var(--border); }
+td { padding: 12px 15px; border-bottom: 1px solid var(--border); font-size: 13px; }
+tr:hover { background: rgba(80, 158, 227, 0.05); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1 style="color:var(--primary); font-size:22px; margin-bottom:20px;">📊 IT 인프라 자산 통합 대시보드</h1>
+  
+  <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+    <p>📂 <b>인프라 관리 엑셀 파일</b>을 업로드하여 대시보드를 실시간 매핑하세요.</p>
+    <input type="file" id="fileInput" style="display:none" accept=".xlsx, .xls">
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card"><div>전체 시스템</div><div class="kpi-val" id="total">0</div></div>
+    <div class="kpi-card"><div>업그레이드 필요</div><div class="kpi-val" id="upgrade" style="color:var(--red)">0</div></div>
+    <div class="kpi-card"><div>표준 준수율</div><div class="kpi-val" id="rate" style="color:var(--green)">0%</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>장비명(Hostname)</th>
+        <th>구분</th>
+        <th>현재 버전</th>
+        <th>권장 버전</th>
+        <th>상태</th>
+      </tr>
+    </thead>
+    <tbody id="list">
+      <tr><td colspan="5" style="text-align:center; padding:80px; color:var(--text);">데이터가 없습니다. 파일을 업로드해 주세요.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const data = new Uint8Array(event.target.result);
+    const workbook = XLSX.read(data, {type: 'array'});
+    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+    renderData(json);
+  };
+  reader.readAsArrayBuffer(e.target.files[0]);
+});
+
+function renderData(data) {
+  let upgradeCount = 0;
+  let compliant = 0;
+  
+  document.getElementById('list').innerHTML = data.map(row => {
+    const name = row['장비명(Hostname)'] || row['Hostname'] || '-';
+    const type = row['장비 구분'] || row['구분'] || '-';
+    const cur = String(row['OS/NOS 현재버전'] || row['현재버전'] || '');
+    const std = String(row['OS/NOS 권고버전'] || row['권고버전'] || '');
+    
+    const isOk = (cur === std && cur !== '');
+    if(!isOk) upgradeCount++; else compliant++;
+    
+    return `<tr>
+      <td><b>${name}</b></td>
+      <td>${type}</td>
+      <td style="color:${!isOk ? 'var(--yellow)' : ''}">${cur}</td>
+      <td>${std}</td>
+      <td style="color:${isOk ? 'var(--green)' : 'var(--red)'}">${isOk ? '● 표준준수' : '● 미준수'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('total').innerText = data.length;
+  document.getElementById('upgrade').innerText = upgradeCount;
+  document.getElementById('rate').innerText = data.length > 0 ? Math.round((compliant/data.length)*100) + '%' : '0%';
+}
+</script>
+</body>
+</html>
