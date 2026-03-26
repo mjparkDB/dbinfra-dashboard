@@ -8,31 +8,40 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-/* 디자인 시스템 100% 이식 */
+/* 디자인 시스템 100% 유지 */
 :root {
   --bg: #0d0f14; --surface: #13161e; --surface2: #1a1e28;
   --border: #252a38; --text: #e2e6f0; --muted: #7a8099;
   --meta-primary: #509ee3; --meta-accent: #74b9f8;
-  --red: #e05c5c; --yellow: #e0c45c; --green: #5ce08a;
+  --red: #e05c5c; --yellow: #e0c45c; --green: #5ce08a; --orange: #e0935c;
 }
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family: 'IBM Plex Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height:100vh; padding: 20px; }
-.top-nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 28px; height: 58px; display: flex; align-items: center; justify-content: space-between; position: sticky; top:0; z-index:100; border-radius: 12px 12px 0 0; }
-.nav-logo { font-family:'Syne',sans-serif; font-size:15px; font-weight:800; letter-spacing:0.5px; }
+* { margin:0; padding:0; box-sizing:border-box; outline:none; }
+body { font-family: 'IBM Plex Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height:100vh; padding-bottom:40px; }
+
+/* 네비게이션 & 업로드 */
+.top-nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 28px; height: 58px; display: flex; align-items: center; justify-content: space-between; position: sticky; top:0; z-index:100; }
+.nav-logo { font-family:'Syne',sans-serif; font-size:16px; font-weight:800; letter-spacing:0.5px; }
 .nav-logo span { color: var(--meta-accent); }
-.upload-card { background: var(--surface2); border: 2px dashed var(--meta-primary); border-radius: 12px; padding: 30px; text-align: center; margin: 20px 0; cursor: pointer; }
+.container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+.upload-card { background: var(--surface2); border: 2px dashed var(--meta-primary); border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 24px; cursor: pointer; transition: 0.2s; }
+.upload-card:hover { background: #1f2633; border-style: solid; }
+
+/* KPI 카드 */
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
 .kpi-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; border-top: 3px solid var(--meta-primary); }
-.kpi-label { font-size: 11px; color: var(--muted); font-weight: 600; margin-bottom: 12px; }
+.kpi-label { font-size: 11px; color: var(--muted); font-weight: 600; margin-bottom: 12px; text-transform: uppercase; }
 .kpi-value { font-size: 32px; font-weight: 700; font-family: 'Syne'; }
+
+/* 차트 & 테이블 */
 .chart-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 24px; }
 .chart-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; height: 320px; }
 .table-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th { background: #1a1e28; padding: 14px 20px; text-align: left; color: var(--muted); font-size: 11px; border-bottom: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+th { background: #1a1e28; padding: 14px 20px; color: var(--muted); font-size: 11px; font-weight: 600; border-bottom: 1px solid var(--border); }
 td { padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.03); }
 tr:hover { background: rgba(80,158,227,0.05); }
 .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.mono { font-family: 'JetBrains Mono', monospace; }
 </style>
 </head>
 <body>
@@ -42,10 +51,10 @@ tr:hover { background: rgba(80,158,227,0.05); }
   <div id="clock" style="font-family:'JetBrains Mono'; font-size:12px; color:var(--muted);">LIVE MAPPER</div>
 </nav>
 
-<div class="container" style="max-width:1400px; margin:auto;">
+<div class="container">
     <div class="upload-card" onclick="document.getElementById('excelFile').click()">
-        <h2 style="font-size:18px; color:var(--meta-accent); margin-bottom:10px;">📊 네트워크 자산 관리대장 업로드</h2>
-        <p style="font-size:13px; color:var(--muted);">파일을 업로드하면 그래프와 수치가 실시간으로 현행화됩니다.</p>
+        <h2 style="font-size:18px; color:var(--meta-accent); margin-bottom:10px;">📊 네트워크 자산 관리대장 업로드 (스마트 매핑 엔진 탑재)</h2>
+        <p style="font-size:13px; color:var(--muted);">항목명이 정확하지 않아도 알아서 '현재버전', '권고버전', 'EOS상태'를 찾아 매핑합니다.</p>
         <input type="file" id="excelFile" style="display:none" accept=".xlsx, .xls, .csv">
     </div>
 
@@ -53,7 +62,7 @@ tr:hover { background: rgba(80,158,227,0.05); }
         <div class="kpi-card"><div class="kpi-label">TOTAL ASSETS</div><div class="kpi-value" id="total" style="color:var(--meta-accent)">0</div></div>
         <div class="kpi-card" style="border-top-color:var(--green)"><div class="kpi-label">COMPLIANCE RATE</div><div class="kpi-value" id="rate" style="color:var(--green)">0%</div></div>
         <div class="kpi-card" style="border-top-color:var(--yellow)"><div class="kpi-label">UPGRADE NEEDED</div><div class="kpi-value" id="upgrade" style="color:var(--yellow)">0</div></div>
-        <div class="kpi-card" style="border-top-color:var(--red)"><div class="kpi-label">EOS/EOL RISK</div><div class="kpi-value" id="eos" style="color:var(--red)">0</div></div>
+        <div class="kpi-card" style="border-top-color:var(--red)"><div class="kpi-label">EOS / RISK</div><div class="kpi-value" id="eos" style="color:var(--red)">0</div></div>
     </div>
 
     <div class="chart-grid">
@@ -62,9 +71,11 @@ tr:hover { background: rgba(80,158,227,0.05); }
     </div>
 
     <div class="table-card">
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600;">🔍 자산 상세 현황 및 조치 우선순위</div>
         <table>
             <thead>
                 <tr>
+                    <th>우선순위</th>
                     <th>HOSTNAME / 장비명</th>
                     <th>구분 / 제조사</th>
                     <th>현재 버전</th>
@@ -73,7 +84,7 @@ tr:hover { background: rgba(80,158,227,0.05); }
                 </tr>
             </thead>
             <tbody id="res-list">
-                <tr><td colspan="5" style="text-align:center; padding:100px; color:var(--muted);">파일을 업로드해주세요.</td></tr>
+                <tr><td colspan="6" style="text-align:center; padding:100px; color:var(--muted);">위의 엑셀/CSV 파일을 업로드해주세요.</td></tr>
             </tbody>
         </table>
     </div>
@@ -85,14 +96,17 @@ let charts = {};
 document.getElementById('excelFile').addEventListener('change', function(e) {
     const reader = new FileReader();
     reader.onload = (event) => {
-        const workbook = XLSX.read(new Uint8Array(event.target.result), {type: 'array'});
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const raw = XLSX.utils.sheet_to_json(sheet, {header: 1});
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const raw = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
         
-        // 헤더 행 탐지 로직 (장비명/Hostname 키워드 기반) 
+        // 데이터가 시작되는 헤더 행 자동 탐색
         let hIdx = 0;
         for(let i=0; i<Math.min(10, raw.length); i++) {
-            if(raw[i].join('').includes('장비명') || raw[i].join('').includes('Hostname')) { hIdx = i; break; }
+            const rowStr = (raw[i] || []).join('').replace(/\s/g, '');
+            if(rowStr.includes('장비') || rowStr.includes('hostname') || rowStr.includes('버전') || rowStr.includes('상태')) { 
+                hIdx = i; break; 
+            }
         }
 
         const headers = raw[hIdx];
@@ -101,43 +115,71 @@ document.getElementById('excelFile').addEventListener('change', function(e) {
             if(!raw[i] || raw[i].length === 0) continue;
             let obj = {};
             headers.forEach((h, idx) => { if(h) obj[h.toString().trim()] = raw[i][idx]; });
-            jsonData.push(obj);
+            
+            // 빈 행 거르기
+            if(Object.values(obj).join('').trim() !== '') jsonData.push(obj);
         }
-        processData(jsonData);
+        processFuzzyData(jsonData);
     };
     reader.readAsArrayBuffer(e.target.files[0]);
 });
 
-function processData(data) {
+function processFuzzyData(data) {
     const list = document.getElementById('res-list');
     let upCnt = 0, okCnt = 0, eosCnt = 0;
     const vendorMap = {};
 
     list.innerHTML = data.map(row => {
-        //  실제 엑셀 컬럼명과 100% 매칭
-        const host = row['장비명(Hostname)'] || row['Hostname'] || '-';
-        const cat = row['장비 구분'] || row['구분'] || '-';
-        const vendor = row['제조사'] || '-';
-        const cur = String(row['OS/NOS 현재버전'] || '');
-        const std = String(row['OS/NOS 권고버전'] || '');
-        const eos = String(row['EOS상태'] || '');
+        let name='-', type='-', vendor='-', cur='', std='', eosStatus='';
 
-        const mismatch = (cur !== std && std !== '' && std !== 'undefined');
-        if(mismatch) upCnt++;
-        if(cur === std && cur !== '' && cur !== 'undefined') okCnt++;
-        if(eos.includes('경과') || eos.includes('위험') || eos.includes('임박')) eosCnt++;
+        // 핵심 해결책: 퍼지 매핑 (Fuzzy Mapping)
+        // 컬럼명에 특수문자나 띄어쓰기가 있어도 '핵심 단어'만 있으면 자동으로 연결함
+        for(let key in row) {
+            let k = key.replace(/\s+/g, '').toLowerCase();
+            let val = String(row[key] || '').trim();
+            
+            if(k.includes('장비명') || k.includes('hostname') || k.includes('호스트명')) name = val;
+            else if(k.includes('구분') || k.includes('유형')) type = val;
+            else if(k.includes('제조사') || k.includes('벤더')) vendor = val;
+            else if(k.includes('현재')) cur = val;
+            else if(k.includes('권고') || k.includes('표준')) std = val;
+            else if(k.includes('eos') || k.includes('상태')) eosStatus = val;
+        }
+
+        const isMismatch = (cur !== std && std !== '' && std !== 'undefined');
+        const isEos = eosStatus.includes('경과') || eosStatus.includes('위험') || eosStatus.includes('임박');
+
+        if(isMismatch) upCnt++;
+        if(cur === std && cur !== '') okCnt++;
+        if(isEos) eosCnt++;
         if(vendor !== '-') vendorMap[vendor] = (vendorMap[vendor] || 0) + 1;
 
+        // 추가 기능: 업그레이드 우선순위 자동 산정
+        let priorityBadge = '';
+        let statusBadge = '';
+        
+        if(isEos) {
+            priorityBadge = `<span class="badge" style="background:var(--red); color:white;">1순위 (긴급)</span>`;
+            statusBadge = `<span class="badge" style="background:rgba(224,92,92,0.15); color:var(--red);">● 위험/EOS</span>`;
+        } else if(isMismatch) {
+            priorityBadge = `<span class="badge" style="background:var(--orange); color:white;">2순위 (경고)</span>`;
+            statusBadge = `<span class="badge" style="background:rgba(224,196,92,0.15); color:var(--yellow);">● 패치 필요</span>`;
+        } else {
+            priorityBadge = `<span class="badge" style="background:transparent; color:var(--muted); border:1px solid var(--border);">3순위 (양호)</span>`;
+            statusBadge = `<span class="badge" style="background:rgba(92,224,138,0.15); color:var(--green);">● 표준 준수</span>`;
+        }
+
         return `<tr>
-            <td style="font-weight:600;">${host}</td>
-            <td style="color:var(--muted)">${cat} / ${vendor}</td>
-            <td style="color:${mismatch ? 'var(--yellow)' : 'white'}">${cur}</td>
-            <td style="color:var(--green)">${std}</td>
-            <td><span class="badge" style="background:${mismatch ? 'rgba(224,196,92,0.1)' : 'rgba(92,224,138,0.1)'}; color:${mismatch ? 'var(--yellow)' : 'var(--green)'}">${mismatch ? '버전 미준수' : '표준 준수'}</span></td>
+            <td>${priorityBadge}</td>
+            <td style="font-weight:600;">${name}</td>
+            <td style="color:var(--muted)">${type} / ${vendor}</td>
+            <td class="mono" style="color:${isMismatch ? 'var(--yellow)' : 'white'}">${cur}</td>
+            <td class="mono" style="color:var(--green)">${std}</td>
+            <td>${statusBadge}</td>
         </tr>`;
     }).join('');
 
-    // KPI 갱신 [cite: 119-124, 281-285]
+    // KPI 갱신
     document.getElementById('total').innerText = data.length;
     document.getElementById('upgrade').innerText = upCnt;
     document.getElementById('eos').innerText = eosCnt;
@@ -153,18 +195,18 @@ function updateCharts(vMap, ok, up) {
     const ctx1 = document.getElementById('barChart').getContext('2d');
     charts.bar = new Chart(ctx1, {
         type: 'bar',
-        data: { labels: Object.keys(vMap), datasets: [{ label: '제조사 분포', data: Object.values(vMap), backgroundColor: '#509ee3' }] },
-        options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#252a38' }, ticks: { color: '#7a8099' } } } }
+        data: { labels: Object.keys(vMap), datasets: [{ label: '제조사별 자산', data: Object.values(vMap), backgroundColor: '#509ee3', borderRadius:4 }] },
+        options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#252a38' }, ticks: { color: '#7a8099' } }, x: { grid: { display: false }, ticks: { color: '#7a8099' } } } }
     });
 
     const ctx2 = document.getElementById('pieChart').getContext('2d');
     charts.pie = new Chart(ctx2, {
         type: 'doughnut',
-        data: { labels: ['준수', '미준수'], datasets: [{ data: [ok, up], backgroundColor: ['#5ce08a', '#e0c45c'], borderWidth: 0 }] },
-        options: { maintainAspectRatio: false, cutout: '75%', plugins: { legend: { labels: { color: '#e2e6f0' } } } }
+        data: { labels: ['표준 준수', '미준수'], datasets: [{ data: [ok, up], backgroundColor: ['#5ce08a', '#e0c45c'], borderWidth: 0 }] },
+        options: { maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position:'right', labels: { color: '#e2e6f0' } } } }
     });
 }
-setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleString(); }, 1000);
+setInterval(() => { document.getElementById('clock').innerText = "LIVE MAPPER | " + new Date().toLocaleString(); }, 1000);
 </script>
 </body>
 </html>
