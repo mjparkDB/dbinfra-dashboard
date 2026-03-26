@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IT 인프라 표준화 조회시스템 — Live Mapper</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg: #0d0f14; --surface: #13161e; --surface2: #1a1e28;
+  --border: #252a38; --text: #e2e6f0; --muted: #7a8099;
+  --meta-primary: #509ee3; --meta-accent: #74b9f8;
+  --red: #e05c5c; --yellow: #e0c45c; --green: #5ce08a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'IBM Plex Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height:100vh; }
+
+/* 상단 네비게이션 */
+.top-nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 28px; height: 58px; display: flex; align-items: center; gap: 24px; position: sticky; top:0; z-index:100; }
+.nav-logo { font-family:'Syne',sans-serif; font-size:15px; font-weight:800; color:var(--text); }
+.nav-logo span { color: var(--meta-accent); }
+
+/* 업로드 영역 [cite: 254] */
+.upload-bar { background: var(--surface2); padding: 20px; text-align: center; border-bottom: 1px solid var(--border); }
+.file-btn { background: var(--meta-primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+
+/* 메인 컨텐츠 [cite: 117] */
+.main-content { padding: 24px; max-width: 1400px; margin: auto; }
+.meta-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.meta-kpi { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.kpi-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.kpi-value { font-size: 32px; font-weight: 700; font-family: 'Syne'; }
+
+/* 테이블 [cite: 207, 349] */
+.table-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #1f2330; padding: 14px; text-align: left; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+td { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+tr:hover { background: rgba(80,158,227,0.05); }
+.badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <div class="nav-logo">IT인프라 <span>표준화조회 v2.0</span></div>
+  <div style="margin-left:auto; font-size:12px; color:var(--muted);" id="last-update">파일을 업로드해주세요</div>
+</nav>
+
+<div class="upload-bar">
+    <button class="file-btn" onclick="document.getElementById('excelInput').click()">📊 엑셀 파일 업로드 (매핑 시작)</button>
+    <input type="file" id="excelInput" style="display:none" accept=".xlsx, .xls">
+</div>
+
+<main class="main-content">
+  <div class="meta-kpi-row">
+    <div class="meta-kpi">
+      <div class="kpi-label">전체 관리 자산</div>
+      <div class="kpi-value" id="total-cnt" style="color:var(--meta-accent)">0</div>
+    </div>
+    <div class="meta-kpi">
+      <div class="kpi-label">업그레이드 필요</div>
+      <div class="kpi-value" id="upgrade-cnt" style="color:var(--yellow)">0</div>
+    </div>
+    <div class="meta-kpi">
+      <div class="kpi-label">EOS/EOL 위험</div>
+      <div class="kpi-value" id="eos-cnt" style="color:var(--red)">0</div>
+    </div>
+    <div class="meta-kpi">
+      <div class="kpi-label">표준화 준수율</div>
+      <div class="kpi-value" id="compliance-rate" style="color:var(--green)">0%</div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>장비명(Hostname)</th>
+          <th>구분</th>
+          <th>현재 버전</th>
+          <th>권고 버전</th>
+          <th>상태</th>
+          <th>담당자</th>
+        </tr>
+      </thead>
+      <tbody id="data-tbody">
+        <tr><td colspan="6" style="text-align:center; padding:100px; color:var(--muted);">업로드된 데이터가 없습니다.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+document.getElementById('excelInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, {type: 'array'});
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet);
+    
+    processExcelData(json);
+    document.getElementById('last-update').innerText = "최종 업데이트: " + new Date().toLocaleString();
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function processExcelData(data) {
+  const tbody = document.getElementById('data-tbody');
+  let upgradeNeeded = 0;
+  let eosCount = 0;
+  let compliant = 0;
+
+  tbody.innerHTML = data.map(row => {
+    // 사용자의 엑셀 컬럼명에 맞춰 자동 매핑 시도
+    const name = row['장비명(Hostname)'] || row['Hostname'] || row['장비명'] || '-';
+    const type = row['장비 구분'] || row['구분'] || row['유형'] || '-';
+    const cur = String(row['OS/NOS 현재버전'] || row['현재버전'] || '');
+    const std = String(row['OS/NOS 권고버전'] || row['권고버전'] || '');
+    const eos = String(row['EOS상태'] || row['상태'] || '');
+    const manager = row['담당자'] || '-';
+
+    const isMismatch = (cur !== std && std !== '');
+    if(isMismatch) upgradeNeeded++;
+    if(cur === std && cur !== '') compliant++;
+    if(eos.includes('경과') || eos.includes('위험')) eosCount++;
+
+    return `
+      <tr>
+        <td style="font-weight:600; color:var(--text)">${name}</td>
+        <td><span style="color:var(--muted)">${type}</span></td>
+        <td style="font-family:'JetBrains Mono'; color:${isMismatch ? 'var(--yellow)' : 'var(--text)'}">${cur}</td>
+        <td style="font-family:'JetBrains Mono'; color:var(--green)">${std}</td>
+        <td>
+          <span class="badge" style="background:${isMismatch ? 'rgba(224,196,92,0.1)' : 'rgba(92,224,138,0.1)'}; 
+          color:${isMismatch ? 'var(--yellow)' : 'var(--green)'}">
+            ${isMismatch ? '버전 미준수' : '표준 준수'}
+          </span>
+        </td>
+        <td>${manager}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // 요약 지표 업데이트 [cite: 75-81, 119-130]
+  document.getElementById('total-cnt').innerText = data.length;
+  document.getElementById('upgrade-cnt').innerText = upgradeNeeded;
+  document.getElementById('eos-cnt').innerText = eosCount;
+  document.getElementById('compliance-rate').innerText = 
+    data.length > 0 ? Math.round((compliant / data.length) * 100) + '%' : '0%';
+}
+</script>
+</body>
+</html>
