@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
+/* 디자인 시스템 100% 유지 */
 :root {
   --bg: #0d0f14; --surface: #13161e; --surface2: #1a1e28;
   --border: #252a38; --text: #e2e6f0; --muted: #7a8099;
@@ -23,675 +24,194 @@ body { font-family: 'IBM Plex Sans KR', sans-serif; background: var(--bg); color
 .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
 
 /* 업로드 카드 */
-.upload-card {
-  background: var(--surface2); border: 2px dashed var(--meta-primary);
-  border-radius: 12px; padding: 26px; margin-bottom: 24px;
-  cursor: pointer; transition: 0.2s;
-  display: flex; align-items: center; gap: 20px; justify-content: space-between;
-}
+.upload-card { background: var(--surface2); border: 2px dashed var(--meta-primary); border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 24px; cursor: pointer; transition: 0.2s; }
 .upload-card:hover { background: #1f2633; border-style: solid; }
-.upload-left { display:flex; align-items:center; gap:16px; }
-.upload-icon { font-size:28px; }
-.upload-title { font-size:15px; color:var(--meta-accent); font-weight:600; margin-bottom:4px; }
-.upload-desc { font-size:12px; color:var(--muted); }
-.upload-right { display:flex; align-items:center; gap:12px; flex-shrink:0; }
-
-/* 데이터 소스 뱃지 */
-.source-tags { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; align-items:center; }
-.source-tag {
-  background: rgba(80,158,227,0.12); border: 1px solid rgba(80,158,227,0.3);
-  border-radius: 20px; padding: 5px 12px; font-size: 11px;
-  color: var(--meta-accent); font-family:'JetBrains Mono';
-  display:flex; align-items:center; gap:6px;
-}
-.source-tag .remove-btn {
-  cursor:pointer; color:var(--red); font-size:14px; line-height:1;
-  transition:0.15s; border-radius:50%; width:16px; height:16px;
-  display:flex; align-items:center; justify-content:center;
-}
-.source-tag .remove-btn:hover { background:rgba(224,92,92,0.2); }
-.source-label { font-size:11px; color:var(--muted); font-weight:600; }
-
-/* 데이터 없을 때 안내 */
-.empty-notice {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 12px; padding: 60px; text-align:center; margin-bottom:24px;
-}
-.empty-notice h3 { color:var(--muted); font-size:16px; margin-bottom:8px; }
-.empty-notice p { color:#4a5060; font-size:13px; }
 
 /* KPI 카드 */
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-.kpi-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; border-top: 3px solid var(--meta-primary); transition:0.2s; }
-.kpi-card:hover { transform:translateY(-2px); }
-.kpi-label { font-size: 11px; color: var(--muted); font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing:0.5px; }
+.kpi-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; border-top: 3px solid var(--meta-primary); }
+.kpi-label { font-size: 11px; color: var(--muted); font-weight: 600; margin-bottom: 12px; text-transform: uppercase; }
 .kpi-value { font-size: 32px; font-weight: 700; font-family: 'Syne'; }
-.kpi-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
 /* 차트 & 테이블 */
 .chart-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 24px; }
 .chart-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; height: 320px; }
-.chart-title { font-size:13px; font-weight:600; margin-bottom:16px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
 .table-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-.table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
-.table-header-title { font-size: 14px; font-weight: 600; }
-
-/* 검색 / 필터 */
-.table-controls { display:flex; gap:10px; align-items:center; }
-.search-input {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 7px 12px; color: var(--text);
-  font-size: 12px; font-family:'IBM Plex Sans KR'; width:180px;
-  transition:0.2s;
-}
-.search-input:focus { border-color:var(--meta-primary); }
-.search-input::placeholder { color:var(--muted); }
-.filter-select {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 7px 10px; color: var(--text);
-  font-size: 12px; cursor:pointer;
-}
-
 table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
-th { background: #161920; padding: 13px 20px; color: var(--muted); font-size: 11px; font-weight: 600; border-bottom: 1px solid var(--border); text-transform:uppercase; letter-spacing:0.4px; }
+th { background: #1a1e28; padding: 14px 20px; color: var(--muted); font-size: 11px; font-weight: 600; border-bottom: 1px solid var(--border); }
 td { padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.03); }
 tr:hover { background: rgba(80,158,227,0.05); }
 .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-.mono { font-family: 'JetBrains Mono', monospace; font-size:12px; }
-
-/* 파일 소스 인디케이터 */
-.file-source-dot { width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:6px; flex-shrink:0; }
-
-/* 버튼 */
-.btn {
-  padding: 7px 14px; border-radius: 8px; font-size: 12px;
-  font-family: 'IBM Plex Sans KR'; cursor: pointer; border: none;
-  font-weight: 600; transition: 0.2s;
-}
-.btn-primary { background: var(--meta-primary); color: white; }
-.btn-primary:hover { background: var(--meta-accent); }
-.btn-danger { background: rgba(224,92,92,0.15); color: var(--red); border: 1px solid rgba(224,92,92,0.3); }
-.btn-danger:hover { background: rgba(224,92,92,0.25); }
-.btn-outline { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-.btn-outline:hover { border-color:var(--meta-primary); color:var(--meta-accent); }
-
-/* 토스트 알림 */
-.toast {
-  position: fixed; bottom: 28px; right: 28px; z-index: 999;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 10px; padding: 14px 20px;
-  display: flex; align-items: center; gap: 12px;
-  font-size: 13px; font-weight: 500;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  transform: translateY(80px); opacity: 0;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.toast.show { transform: translateY(0); opacity: 1; }
-.toast-icon { font-size: 18px; }
-
-/* 페이지네이션 */
-.pagination { display:flex; align-items:center; gap:8px; padding:14px 20px; border-top:1px solid var(--border); justify-content:flex-end; }
-.page-btn { width:30px; height:30px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-size:12px; transition:0.15s; }
-.page-btn:hover { border-color:var(--meta-primary); color:var(--meta-accent); }
-.page-btn.active { background:var(--meta-primary); color:white; border-color:var(--meta-primary); }
-.page-info { font-size:12px; color:var(--muted); }
-
-/* 반응형 */
-@media(max-width:900px) {
-  .kpi-grid { grid-template-columns: repeat(2,1fr); }
-  .chart-grid { grid-template-columns: 1fr; }
-}
+.mono { font-family: 'JetBrains Mono', monospace; }
 </style>
 </head>
 <body>
 
 <nav class="top-nav">
   <div class="nav-logo">IT INFRA <span>STANDARDIZATION</span></div>
-  <div style="display:flex;gap:12px;align-items:center;">
-    <div id="data-count" style="font-family:'JetBrains Mono'; font-size:11px; color:var(--muted);"></div>
-    <div id="clock" style="font-family:'JetBrains Mono'; font-size:12px; color:var(--muted);"></div>
-  </div>
+  <div id="clock" style="font-family:'JetBrains Mono'; font-size:12px; color:var(--muted);">LIVE DASHBOARD</div>
 </nav>
 
-<!-- 토스트 -->
-<div class="toast" id="toast">
-  <span class="toast-icon" id="toast-icon">✅</span>
-  <span id="toast-msg">업로드 완료</span>
-</div>
-
 <div class="container">
-
-  <!-- 업로드 카드 -->
-  <div class="upload-card" onclick="document.getElementById('excelFile').click()">
-    <div class="upload-left">
-      <div class="upload-icon">📂</div>
-      <div>
-        <div class="upload-title">엑셀(CSV) 업로드 — 누적 데이터 관리</div>
-        <div class="upload-desc">파일을 추가로 업로드하면 기존 데이터에 누적됩니다. 동일 장비명은 최신 데이터로 갱신됩니다.</div>
-      </div>
+    <div class="upload-card" onclick="document.getElementById('excelFile').click()">
+        <h2 style="font-size:18px; color:var(--meta-accent); margin-bottom:10px;">📂 엑셀(CSV) 업로드 (모든 오류 해결판)</h2>
+        <p style="font-size:13px; color:var(--muted);">보내주신 네트워크 자산 CSV 파일을 클릭해서 업로드 해주세요.</p>
+        <input type="file" id="excelFile" style="display:none" accept=".xlsx, .xls, .csv">
     </div>
-    <div class="upload-right">
-      <button class="btn btn-danger" onclick="event.stopPropagation(); clearAll()">🗑 전체 초기화</button>
-      <button class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('excelFile').click()">+ 파일 추가</button>
-    </div>
-    <input type="file" id="excelFile" style="display:none" accept=".xlsx, .xls, .csv" multiple>
-  </div>
-
-  <!-- 업로드된 소스 파일 태그 -->
-  <div class="source-tags" id="source-tags"></div>
-
-  <!-- 데이터 없을 때 안내 -->
-  <div class="empty-notice" id="empty-notice">
-    <h3>📊 업로드된 데이터가 없습니다</h3>
-    <p>위 버튼을 클릭하거나 CSV/Excel 파일을 업로드해 대시보드를 활성화하세요.<br>한 번 업로드하면 브라우저를 닫아도 데이터가 유지됩니다.</p>
-  </div>
-
-  <!-- 대시보드 (데이터 있을 때 표시) -->
-  <div id="dashboard" style="display:none;">
 
     <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-label">TOTAL ASSETS</div>
-        <div class="kpi-value" id="total" style="color:var(--meta-accent)">0</div>
-        <div class="kpi-sub" id="kpi-files"></div>
-      </div>
-      <div class="kpi-card" style="border-top-color:var(--green)">
-        <div class="kpi-label">COMPLIANCE RATE</div>
-        <div class="kpi-value" id="rate" style="color:var(--green)">0%</div>
-        <div class="kpi-sub" id="kpi-ok"></div>
-      </div>
-      <div class="kpi-card" style="border-top-color:var(--yellow)">
-        <div class="kpi-label">UPGRADE NEEDED</div>
-        <div class="kpi-value" id="upgrade" style="color:var(--yellow)">0</div>
-        <div class="kpi-sub">OS/FW 패치 필요</div>
-      </div>
-      <div class="kpi-card" style="border-top-color:var(--red)">
-        <div class="kpi-label">EOS / RISK</div>
-        <div class="kpi-value" id="eos" style="color:var(--red)">0</div>
-        <div class="kpi-sub">지원 종료 / 위험</div>
-      </div>
+        <div class="kpi-card"><div class="kpi-label">TOTAL ASSETS</div><div class="kpi-value" id="total" style="color:var(--meta-accent)">0</div></div>
+        <div class="kpi-card" style="border-top-color:var(--green)"><div class="kpi-label">COMPLIANCE RATE</div><div class="kpi-value" id="rate" style="color:var(--green)">0%</div></div>
+        <div class="kpi-card" style="border-top-color:var(--yellow)"><div class="kpi-label">UPGRADE NEEDED</div><div class="kpi-value" id="upgrade" style="color:var(--yellow)">0</div></div>
+        <div class="kpi-card" style="border-top-color:var(--red)"><div class="kpi-label">EOS / RISK</div><div class="kpi-value" id="eos" style="color:var(--red)">0</div></div>
     </div>
 
     <div class="chart-grid">
-      <div class="chart-box">
-        <div class="chart-title">벤더별 장비 분포</div>
-        <canvas id="barChart"></canvas>
-      </div>
-      <div class="chart-box">
-        <div class="chart-title">표준 준수 현황</div>
-        <canvas id="pieChart"></canvas>
-      </div>
+        <div class="chart-box"><canvas id="barChart"></canvas></div>
+        <div class="chart-box"><canvas id="pieChart"></canvas></div>
     </div>
 
     <div class="table-card">
-      <div class="table-header">
-        <div class="table-header-title">🔍 자산 상세 현황 및 버전 매핑 결과</div>
-        <div class="table-controls">
-          <input class="search-input" id="search-input" placeholder="장비명 / 벤더 검색..." oninput="renderTable()">
-          <select class="filter-select" id="status-filter" onchange="renderTable()">
-            <option value="all">전체 상태</option>
-            <option value="ok">✅ 표준 준수</option>
-            <option value="upgrade">⚠️ 패치 필요</option>
-            <option value="eos">🔴 위험/EOS</option>
-          </select>
-          <button class="btn btn-outline" onclick="exportCsv()">⬇ CSV 내보내기</button>
-        </div>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>HOSTNAME / 장비명</th>
-            <th>구분 / 벤더</th>
-            <th>현재 버전</th>
-            <th>권고 버전</th>
-            <th>상태</th>
-            <th>소스 파일</th>
-          </tr>
-        </thead>
-        <tbody id="res-list"></tbody>
-      </table>
-      <div class="pagination" id="pagination"></div>
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600;">🔍 자산 상세 현황 및 버전 매핑 결과</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>HOSTNAME / 장비명</th>
+                    <th>구분 / 벤더</th>
+                    <th>현재 버전</th>
+                    <th>권고 버전</th>
+                    <th>상태</th>
+                </tr>
+            </thead>
+            <tbody id="res-list">
+                <tr><td colspan="5" style="text-align:center; padding:100px; color:var(--muted);">위 영역을 눌러 CSV 파일을 업로드해주세요.</td></tr>
+            </tbody>
+        </table>
     </div>
-
-  </div>
 </div>
 
 <script>
-// ───────────────────────────────────────────────
-// 상수 / 상태
-// ───────────────────────────────────────────────
-const STORAGE_KEY = 'itinfra_assets_v2';
-const SOURCES_KEY  = 'itinfra_sources_v2';
-const PAGE_SIZE    = 20;
+let charts = {};
 
-// 파일별 색상 팔레트 (최대 10개)
-const FILE_COLORS = [
-  '#509ee3','#5ce08a','#e0c45c','#e05c5c','#b48aff',
-  '#ff8c5a','#5ae0d4','#e05caa','#a0e05c','#5c9be0'
-];
-
-let state = {
-  assets:  {},   // { hostname: { ...rowData, _file, _fileIdx, _status } }
-  sources: [],   // [{ name, loadedAt, count, colorIdx }]
-  charts:  {},
-  page:    1,
-};
-
-// ───────────────────────────────────────────────
-// localStorage 유틸
-// ───────────────────────────────────────────────
-function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.assets));
-    localStorage.setItem(SOURCES_KEY, JSON.stringify(state.sources));
-  } catch(e) {
-    // localStorage 용량 초과 시 경고
-    showToast('⚠️', '저장 용량 초과 — 일부 데이터가 저장되지 않을 수 있습니다.', 'var(--yellow)');
-  }
-}
-
-function loadState() {
-  try {
-    const a = localStorage.getItem(STORAGE_KEY);
-    const s = localStorage.getItem(SOURCES_KEY);
-    if (a) state.assets  = JSON.parse(a);
-    if (s) state.sources = JSON.parse(s);
-  } catch(e) {
-    state.assets  = {};
-    state.sources = [];
-  }
-}
-
-// ───────────────────────────────────────────────
-// 파일 업로드 핸들러 (multiple 지원)
-// ───────────────────────────────────────────────
 document.getElementById('excelFile').addEventListener('change', function(e) {
-  const files = Array.from(e.target.files);
-  if (!files.length) return;
-
-  let processed = 0;
-  files.forEach(file => {
     const reader = new FileReader();
     reader.onload = (event) => {
-      const data = new Uint8Array(event.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const raw = XLSX.utils.sheet_to_json(
-        workbook.Sheets[workbook.SheetNames[0]],
-        { header: 1, defval: '' }
-      );
-      ingestFile(raw, file.name);
-      processed++;
-      if (processed === files.length) {
-        saveState();
-        renderAll();
-        showToast('✅', `${files.length}개 파일 업로드 완료 (총 ${Object.keys(state.assets).length}개 자산)`, 'var(--green)');
-      }
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        // 빈 셀도 ''로 읽도록 설정
+        const raw = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1, defval: ''});
+        
+        // 1. 헤더 행 정확히 찾기
+        let hIdx = -1;
+        for(let i=0; i<Math.min(10, raw.length); i++) {
+            const rowStr = raw[i].join('').replace(/\s/g, '').toLowerCase();
+            if(rowStr.includes('장비명') || rowStr.includes('hostname')) { 
+                hIdx = i; break; 
+            }
+        }
+
+        if(hIdx === -1) {
+            alert("데이터를 찾을 수 없습니다. 파일을 확인해주세요.");
+            return;
+        }
+
+        // 2. 엑셀 헤더의 모든 공백 및 줄바꿈(\n) 강제 제거 (핵심 해결책)
+        const headers = raw[hIdx].map(h => String(h).replace(/[\s\r\n]+/g, '').toLowerCase());
+        
+        const jsonData = [];
+        for(let i=hIdx+1; i<raw.length; i++) {
+            if(raw[i].join('').trim() === '') continue; // 빈 줄 무시
+            
+            let obj = {};
+            headers.forEach((h, idx) => { if(h) obj[h] = raw[i][idx]; });
+            jsonData.push(obj);
+        }
+        processData(jsonData);
     };
-    reader.readAsArrayBuffer(file);
-  });
-  // input 초기화 (같은 파일 재업로드 허용)
-  e.target.value = '';
+    reader.readAsArrayBuffer(e.target.files[0]);
 });
 
-// ───────────────────────────────────────────────
-// 파일 데이터 파싱 → state.assets 에 merge
-// ───────────────────────────────────────────────
-function ingestFile(raw, fileName) {
-  // 1) 헤더 행 탐색
-  let hIdx = -1;
-  for (let i = 0; i < Math.min(10, raw.length); i++) {
-    const rowStr = raw[i].join('').replace(/\s/g, '').toLowerCase();
-    if (rowStr.includes('장비명') || rowStr.includes('hostname')) { hIdx = i; break; }
-  }
-  if (hIdx === -1) {
-    showToast('❌', `"${fileName}" — 헤더를 찾을 수 없습니다.`, 'var(--red)');
-    return;
-  }
+function processData(data) {
+    const list = document.getElementById('res-list');
+    let upCnt = 0, okCnt = 0, eosCnt = 0;
+    const vendorMap = {};
 
-  // 2) 헤더 정규화
-  const headers = raw[hIdx].map(h => String(h).replace(/[\s\r\n]+/g, '').toLowerCase());
+    list.innerHTML = data.map(row => {
+        // 제거된 헤더명으로 데이터 100% 매핑
+        const host = row['장비명(hostname)'] || row['장비명'] || '-';
+        const cat = row['장비구분'] || row['구분'] || '-';
+        const vendor = row['벤더'] || row['제조사'] || '-';
+        const cur = String(row['os/nos현재버전'] || row['현재버전'] || '').trim();
+        const std = String(row['os/nos권고버전'] || row['권고버전'] || '').trim();
+        const fwNeed = String(row['fw업그레이드필요'] || '').trim();
+        const eos1 = String(row['장비eos'] || '').trim();
+        const eos2 = String(row['os/sweos'] || '').trim();
 
-  // 3) 소스 등록 (중복 파일명이면 갱신)
-  let srcIdx = state.sources.findIndex(s => s.name === fileName);
-  const colorIdx = srcIdx !== -1 ? state.sources[srcIdx].colorIdx : (state.sources.length % FILE_COLORS.length);
-  const newSrc = {
-    name: fileName,
-    loadedAt: new Date().toLocaleString('ko-KR'),
-    count: 0,
-    colorIdx
-  };
-  if (srcIdx === -1) {
-    state.sources.push(newSrc);
-    srcIdx = state.sources.length - 1;
-  } else {
-    state.sources[srcIdx] = newSrc;
-  }
+        // 상태 로직 계산
+        let isMismatch = false;
+        if(cur !== std && cur !== '' && std !== '') isMismatch = true;
+        if(fwNeed === '필요') isMismatch = true;
 
-  // 4) 행 파싱 및 assets merge (장비명 키로 upsert)
-  let count = 0;
-  for (let i = hIdx + 1; i < raw.length; i++) {
-    if (raw[i].join('').trim() === '') continue;
+        let isEos = false;
+        // EOS 날짜가 오늘보다 과거이거나 6개월 이내면 위험(EOS) 처리
+        const checkEosDate = (dStr) => {
+            if(!dStr || dStr === '-') return false;
+            let d = new Date(dStr);
+            if(isNaN(d)) return false;
+            return (d - new Date()) / (1000 * 60 * 60 * 24) < 180;
+        };
+        if(checkEosDate(eos1) || checkEosDate(eos2)) isEos = true;
 
-    const obj = {};
-    headers.forEach((h, idx) => { if (h) obj[h] = raw[i][idx]; });
+        if(isMismatch) upCnt++;
+        if(!isMismatch && cur !== '') okCnt++;
+        if(isEos) eosCnt++;
+        
+        if(vendor !== '-' && vendor !== '') {
+            vendorMap[vendor] = (vendorMap[vendor] || 0) + 1;
+        }
 
-    const host = String(
-      obj['장비명(hostname)'] || obj['장비명'] || obj['hostname'] || ''
-    ).trim();
-    if (!host || host === '') continue;
+        // 뱃지 색상 부여
+        let badge = `<span class="badge" style="background:rgba(92,224,138,0.15); color:var(--green);">● 표준 준수</span>`;
+        if(isEos) badge = `<span class="badge" style="background:rgba(224,92,92,0.15); color:var(--red);">● 위험/EOS</span>`;
+        else if(isMismatch) badge = `<span class="badge" style="background:rgba(224,196,92,0.15); color:var(--yellow);">● 패치 필요</span>`;
 
-    // 상태 계산
-    const parsed = parseRow(obj);
-
-    state.assets[host] = {
-      ...parsed,
-      _file:    fileName,
-      _fileIdx: srcIdx,
-      _color:   FILE_COLORS[colorIdx],
-    };
-    count++;
-  }
-
-  state.sources[srcIdx].count = count;
-}
-
-// ───────────────────────────────────────────────
-// 단일 행 파싱 및 상태 판별
-// ───────────────────────────────────────────────
-function parseRow(obj) {
-  const host    = String(obj['장비명(hostname)'] || obj['장비명'] || obj['hostname'] || '-').trim();
-  const cat     = String(obj['장비구분']  || obj['구분']    || '-').trim();
-  const vendor  = String(obj['벤더']      || obj['제조사']  || '-').trim();
-  const cur     = String(obj['os/nos현재버전'] || obj['현재버전'] || '').trim();
-  const std     = String(obj['os/nos권고버전'] || obj['권고버전'] || '').trim();
-  const fwNeed  = String(obj['fw업그레이드필요'] || '').trim();
-  const eos1    = String(obj['장비eos']   || '').trim();
-  const eos2    = String(obj['os/sweos'] || '').trim();
-
-  const checkEosDate = (dStr) => {
-    if (!dStr || dStr === '-') return false;
-    const d = new Date(dStr);
-    if (isNaN(d)) return false;
-    return (d - new Date()) / (1000 * 60 * 60 * 24) < 180;
-  };
-
-  const isEos      = checkEosDate(eos1) || checkEosDate(eos2);
-  const isMismatch = !isEos && ((cur !== std && cur !== '' && std !== '') || fwNeed === '필요');
-  const isOk       = !isEos && !isMismatch && cur !== '';
-
-  let status = 'unknown';
-  if (isEos)      status = 'eos';
-  else if (isMismatch) status = 'upgrade';
-  else if (isOk)  status = 'ok';
-
-  return { host, cat, vendor, cur, std, fwNeed, eos1, eos2, status };
-}
-
-// ───────────────────────────────────────────────
-// 전체 화면 렌더링
-// ───────────────────────────────────────────────
-function renderAll() {
-  const assets = Object.values(state.assets);
-  const hasDashboard = assets.length > 0;
-
-  document.getElementById('empty-notice').style.display  = hasDashboard ? 'none' : 'block';
-  document.getElementById('dashboard').style.display      = hasDashboard ? 'block' : 'none';
-
-  if (!hasDashboard) {
-    renderSourceTags();
-    return;
-  }
-
-  // KPI
-  const okCnt  = assets.filter(a => a.status === 'ok').length;
-  const upCnt  = assets.filter(a => a.status === 'upgrade').length;
-  const eosCnt = assets.filter(a => a.status === 'eos').length;
-
-  document.getElementById('total').innerText   = assets.length;
-  document.getElementById('upgrade').innerText = upCnt;
-  document.getElementById('eos').innerText     = eosCnt;
-  document.getElementById('rate').innerText    = assets.length > 0
-    ? Math.round((okCnt / assets.length) * 100) + '%' : '0%';
-  document.getElementById('kpi-ok').innerText  = `표준 준수 ${okCnt}개`;
-  document.getElementById('kpi-files').innerText = `${state.sources.length}개 파일 누적`;
-  document.getElementById('data-count').innerText = `ASSETS ${assets.length}`;
-
-  // 차트
-  const vendorMap = {};
-  assets.forEach(a => {
-    if (a.vendor && a.vendor !== '-') vendorMap[a.vendor] = (vendorMap[a.vendor] || 0) + 1;
-  });
-  updateCharts(vendorMap, okCnt, upCnt, eosCnt);
-
-  // 테이블
-  state.page = 1;
-  renderTable();
-  renderSourceTags();
-}
-
-// ───────────────────────────────────────────────
-// 테이블 렌더링 (필터 + 검색 + 페이지네이션)
-// ───────────────────────────────────────────────
-function renderTable() {
-  const search = (document.getElementById('search-input')?.value || '').toLowerCase();
-  const filter = document.getElementById('status-filter')?.value || 'all';
-
-  const all = Object.values(state.assets).filter(a => {
-    const matchSearch = a.host.toLowerCase().includes(search) || a.vendor.toLowerCase().includes(search);
-    const matchFilter = filter === 'all' || a.status === filter;
-    return matchSearch && matchFilter;
-  });
-
-  const total  = all.length;
-  const pages  = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  state.page   = Math.min(state.page, pages);
-  const start  = (state.page - 1) * PAGE_SIZE;
-  const paged  = all.slice(start, start + PAGE_SIZE);
-
-  const tbody = document.getElementById('res-list');
-  if (paged.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:60px;color:var(--muted);">검색 결과가 없습니다.</td></tr>`;
-  } else {
-    tbody.innerHTML = paged.map(a => {
-      let badge;
-      if (a.status === 'eos')
-        badge = `<span class="badge" style="background:rgba(224,92,92,0.15);color:var(--red);">● 위험/EOS</span>`;
-      else if (a.status === 'upgrade')
-        badge = `<span class="badge" style="background:rgba(224,196,92,0.15);color:var(--yellow);">● 패치 필요</span>`;
-      else if (a.status === 'ok')
-        badge = `<span class="badge" style="background:rgba(92,224,138,0.15);color:var(--green);">● 표준 준수</span>`;
-      else
-        badge = `<span class="badge" style="background:rgba(122,128,153,0.15);color:var(--muted);">● 미확인</span>`;
-
-      const dot = `<span class="file-source-dot" style="background:${a._color || '#509ee3'}"></span>`;
-      const srcName = state.sources[a._fileIdx]?.name || a._file || '-';
-
-      return `<tr>
-        <td style="font-weight:600">${a.host}</td>
-        <td style="color:var(--muted)">${a.cat} / ${a.vendor}</td>
-        <td class="mono" style="color:${a.status==='upgrade'?'var(--yellow)':'white'}">${a.cur || '-'}</td>
-        <td class="mono" style="color:var(--green)">${a.std || '-'}</td>
-        <td>${badge}</td>
-        <td style="font-size:11px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          ${dot}${srcName}
-        </td>
-      </tr>`;
+        return `<tr>
+            <td style="font-weight:600;">${host}</td>
+            <td style="color:var(--muted)">${cat} / ${vendor}</td>
+            <td class="mono" style="color:${isMismatch ? 'var(--yellow)' : 'white'}">${cur || '-'}</td>
+            <td class="mono" style="color:var(--green)">${std || '-'}</td>
+            <td>${badge}</td>
+        </tr>`;
     }).join('');
-  }
 
-  // 페이지네이션
-  renderPagination(pages, total);
+    // KPI 지표 갱신
+    document.getElementById('total').innerText = data.length;
+    document.getElementById('upgrade').innerText = upCnt;
+    document.getElementById('eos').innerText = eosCnt;
+    document.getElementById('rate').innerText = data.length > 0 ? Math.round((okCnt/data.length)*100)+'%' : '0%';
+
+    updateCharts(vendorMap, okCnt, upCnt);
 }
 
-function renderPagination(pages, total) {
-  const el = document.getElementById('pagination');
-  if (pages <= 1) { el.innerHTML = `<span class="page-info">총 ${total}개</span>`; return; }
+function updateCharts(vMap, ok, up) {
+    if(charts.bar) charts.bar.destroy();
+    if(charts.pie) charts.pie.destroy();
 
-  let html = `<span class="page-info" style="margin-right:8px;">총 ${total}개</span>`;
-  const makeBtn = (p, label) =>
-    `<button class="page-btn ${p===state.page?'active':''}" onclick="goPage(${p})">${label||p}</button>`;
+    const ctx1 = document.getElementById('barChart').getContext('2d');
+    charts.bar = new Chart(ctx1, {
+        type: 'bar',
+        data: { labels: Object.keys(vMap), datasets: [{ label: '장비 벤더 분포', data: Object.values(vMap), backgroundColor: '#509ee3', borderRadius:4 }] },
+        options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#252a38' }, ticks: { color: '#7a8099' } }, x: { grid: { display: false }, ticks: { color: '#7a8099' } } } }
+    });
 
-  html += makeBtn(Math.max(1, state.page-1), '‹');
-  for (let p = 1; p <= pages; p++) {
-    if (pages > 7 && Math.abs(p - state.page) > 2 && p !== 1 && p !== pages) {
-      if (p === 2 || p === pages-1) html += `<span style="color:var(--muted);padding:0 4px">…</span>`;
-      continue;
-    }
-    html += makeBtn(p);
-  }
-  html += makeBtn(Math.min(pages, state.page+1), '›');
-  el.innerHTML = html;
+    const ctx2 = document.getElementById('pieChart').getContext('2d');
+    charts.pie = new Chart(ctx2, {
+        type: 'doughnut',
+        data: { labels: ['표준 준수', '미준수(패치필요)'], datasets: [{ data: [ok, up], backgroundColor: ['#5ce08a', '#e0c45c'], borderWidth: 0 }] },
+        options: { maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position:'right', labels: { color: '#e2e6f0' } } } }
+    });
 }
-
-function goPage(p) { state.page = p; renderTable(); }
-
-// ───────────────────────────────────────────────
-// 소스 파일 태그 렌더링
-// ───────────────────────────────────────────────
-function renderSourceTags() {
-  const el = document.getElementById('source-tags');
-  if (!state.sources.length) { el.innerHTML = ''; return; }
-
-  const label = `<span class="source-label">업로드된 파일:</span>`;
-  const tags = state.sources.map((s, i) =>
-    `<span class="source-tag">
-      <span class="file-source-dot" style="background:${FILE_COLORS[s.colorIdx]}"></span>
-      ${s.name} <span style="color:var(--muted)">(${s.count}개)</span>
-      <span class="remove-btn" onclick="removeSource(${i})" title="이 파일 데이터 삭제">✕</span>
-    </span>`
-  ).join('');
-  el.innerHTML = label + tags;
-}
-
-// ───────────────────────────────────────────────
-// 소스별 삭제
-// ───────────────────────────────────────────────
-function removeSource(idx) {
-  const srcName = state.sources[idx].name;
-  // 해당 파일의 자산 제거
-  Object.keys(state.assets).forEach(k => {
-    if (state.assets[k]._file === srcName) delete state.assets[k];
-  });
-  state.sources.splice(idx, 1);
-  // _fileIdx 재정렬
-  Object.values(state.assets).forEach(a => {
-    const newIdx = state.sources.findIndex(s => s.name === a._file);
-    a._fileIdx = newIdx;
-    a._color   = newIdx >= 0 ? FILE_COLORS[state.sources[newIdx].colorIdx] : '#7a8099';
-  });
-
-  saveState();
-  renderAll();
-  showToast('🗑', `"${srcName}" 데이터가 삭제되었습니다.`, 'var(--red)');
-}
-
-// ───────────────────────────────────────────────
-// 전체 초기화
-// ───────────────────────────────────────────────
-function clearAll() {
-  if (!confirm('⚠️ 저장된 모든 자산 데이터를 삭제하시겠습니까?')) return;
-  state.assets  = {};
-  state.sources = [];
-  saveState();
-  renderAll();
-  showToast('🗑', '모든 데이터가 초기화되었습니다.', 'var(--red)');
-}
-
-// ───────────────────────────────────────────────
-// CSV 내보내기
-// ───────────────────────────────────────────────
-function exportCsv() {
-  const assets = Object.values(state.assets);
-  if (!assets.length) return;
-  const header = ['장비명','구분','벤더','현재버전','권고버전','상태','소스파일'];
-  const statusLabel = { ok:'표준 준수', upgrade:'패치 필요', eos:'위험/EOS', unknown:'미확인' };
-  const rows = assets.map(a => [
-    a.host, a.cat, a.vendor, a.cur, a.std,
-    statusLabel[a.status] || '-',
-    a._file || '-'
-  ]);
-  const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = `it_infra_assets_${new Date().toLocaleDateString('ko-KR').replace(/\. /g,'-').replace('.','')}csv`;
-  a.click(); URL.revokeObjectURL(url);
-}
-
-// ───────────────────────────────────────────────
-// 차트
-// ───────────────────────────────────────────────
-function updateCharts(vMap, ok, up, eos) {
-  if (state.charts.bar) state.charts.bar.destroy();
-  if (state.charts.pie) state.charts.pie.destroy();
-
-  const ctx1 = document.getElementById('barChart').getContext('2d');
-  state.charts.bar = new Chart(ctx1, {
-    type: 'bar',
-    data: {
-      labels: Object.keys(vMap),
-      datasets: [{
-        label: '장비 수',
-        data: Object.values(vMap),
-        backgroundColor: FILE_COLORS.slice(0, Object.keys(vMap).length),
-        borderRadius: 5,
-      }]
-    },
-    options: {
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { grid: { color: '#252a38' }, ticks: { color: '#7a8099' } },
-        x: { grid: { display: false }, ticks: { color: '#7a8099', maxRotation: 30 } }
-      }
-    }
-  });
-
-  const ctx2 = document.getElementById('pieChart').getContext('2d');
-  state.charts.pie = new Chart(ctx2, {
-    type: 'doughnut',
-    data: {
-      labels: ['표준 준수', '패치 필요', '위험/EOS'],
-      datasets: [{
-        data: [ok, up, eos],
-        backgroundColor: ['#5ce08a', '#e0c45c', '#e05c5c'],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      maintainAspectRatio: false,
-      cutout: '75%',
-      plugins: {
-        legend: { position: 'right', labels: { color: '#e2e6f0', padding: 16, font: { size: 12 } } }
-      }
-    }
-  });
-}
-
-// ───────────────────────────────────────────────
-// 토스트 알림
-// ───────────────────────────────────────────────
-let toastTimer;
-function showToast(icon, msg, color) {
-  const t = document.getElementById('toast');
-  document.getElementById('toast-icon').innerText = icon;
-  document.getElementById('toast-msg').innerText  = msg;
-  t.style.borderColor = color || 'var(--border)';
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
-}
-
-// ───────────────────────────────────────────────
-// 초기화 진입점
-// ───────────────────────────────────────────────
-(function init() {
-  loadState();
-  renderAll();
-  setInterval(() => {
-    document.getElementById('clock').innerText = new Date().toLocaleString('ko-KR');
-  }, 1000);
-})();
+setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleString(); }, 1000);
 </script>
 </body>
 </html>
