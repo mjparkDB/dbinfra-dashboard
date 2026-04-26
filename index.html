@@ -4,7 +4,33 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IT인프라 표준화 조회시스템 | JH.CORP</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">window.addEventListener('DOMContentLoaded',function(){
+  try{
+    var srvJson=localStorage.getItem('infra_srv_data');
+    var netJson=localStorage.getItem('infra_net_data');
+    var fname=localStorage.getItem('infra_file_name');
+    var saveTime=localStorage.getItem('infra_save_time');
+    if(srvJson&&netJson){
+      SRV=JSON.parse(srvJson);
+      NET=JSON.parse(netJson);
+      importedFileName=fname||'(로컬 저장본)';
+      var saveDate=saveTime?new Date(saveTime).toLocaleString('ko-KR'):'';
+      var su=SRV.filter(function(s){return s.s==='긴급';}).length;
+      var nu=NET.filter(function(n){return n.s==='긴급';}).length;
+      document.getElementById('badge-srv').textContent='긴급 '+su;
+      document.getElementById('badge-net').textContent='긴급 '+nu;
+      document.getElementById('badge-urg').textContent=(su+nu)+'건';
+      document.getElementById('data-src').textContent=(fname||'저장본')+' [캐시됨]';
+      document.getElementById('sf-file').textContent='파일: '+(fname||'저장본');
+      document.getElementById('sf-cnt').textContent='서버 '+SRV.length+'대 · 네트워크 '+NET.length+'대';
+      document.getElementById('dash-fn').textContent=(fname||'저장본')+' [캐시됨]';
+      document.getElementById('dash-fd').textContent='서버 '+SRV.length+'대 + 네트워크 '+NET.length+'대 (재접속 시에도 유지)';
+      showResult([{ok:true,msg:'✅ 이전 저장본 복원됨 ('+SRV.length+'개 서버 + '+NET.length+'개 네트워크)'},{ok:true,msg:'📅 저장 시간: '+saveDate}]);
+    }
+  }catch(e){console.warn('복원 실패:',e);}
+  document.getElementById('nav-import').classList.add('on');
+});
+</script>
 <style>
 :root{--bg:#0b0f1e;--bg2:#0f1627;--bg3:#141d36;--bg4:#192041;--bghov:#1c2648;--bd:#1e2e5c;--bd2:#2a3f6e;--acc:#3b82f6;--acc2:#60a5fa;--accg:rgba(59,130,246,.16);--cy:#22d3ee;--cyg:rgba(34,211,238,.12);--red:#ef4444;--redg:rgba(239,68,68,.14);--yel:#f59e0b;--yelg:rgba(245,158,11,.14);--grn:#22c55e;--grng:rgba(34,197,94,.14);--org:#f97316;--t1:#e2e8f0;--t2:#94a3b8;--t3:#475569;--t4:#2d3a52;--r:7px;--rl:12px;--fs:"맑은 고딕","Malgun Gothic","Apple SD Gothic Neo","AppleGothic","굴림","Gulim","Nanum Gothic",sans-serif;--fm:"Consolas","Courier New","굴림체","Gulim",monospace}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -439,8 +465,9 @@ function updateAll(fname){
   document.getElementById('sf-cnt').textContent='서버 '+SRV.length+'대 · 네트워크 '+NET.length+'대';
   document.getElementById('dash-fn').textContent=fname||'—';
   document.getElementById('dash-fd').textContent='서버 '+SRV.length+'대 + 네트워크 '+NET.length+'대 파싱 완료';
-  showResult([{ok:true,msg:'✅ 서버 '+SRV.length+'건 파싱 완료 (긴급 '+su+'대)'},{ok:true,msg:'✅ 네트워크 '+NET.length+'건 파싱 완료 (긴급 '+nu+'대)'},{ok:true,msg:'✅ 상태/권고버전 자동 판정 완료 — EOL 룰엔진 적용'}]);
+  showResult([{ok:true,msg:'✅ 서버 '+SRV.length+'건 파싱 완료 (긴급 '+su+'대)'},{ok:true,msg:'✅ 네트워크 '+NET.length+'건 파싱 완료 (긴급 '+nu+'대)'},{ok:true,msg:'✅ 상태/권고버전 자동 판정 완료 — EOL 룰엔진 적용'},{ok:true,msg:'💾 브라우저 로컬 저장소에 자동 저장됨'}]);
   toast('파일 로드 완료 (서버 '+SRV.length+'대 + 네트워크 '+NET.length+'대)','ok');
+  try{localStorage.setItem('infra_srv_data',JSON.stringify(SRV));localStorage.setItem('infra_net_data',JSON.stringify(NET));localStorage.setItem('infra_file_name',fname||'');localStorage.setItem('infra_save_time',new Date().toISOString());}catch(e){console.warn('저장 실패:',e);}
   setTimeout(function(){sw('dash',document.getElementById('nav-dash'));},400);
 }
 var SC={긴급:'su',주의:'sw',양호:'sg',확인필요:'sc'};
