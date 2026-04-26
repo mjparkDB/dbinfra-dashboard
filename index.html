@@ -6,263 +6,268 @@
 <title>IT인프라 표준화 조회시스템 | JH.CORP</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-/* ══════════════════════════════════════
-   컬러 시스템
-   메인1: #00854A  메인2: #8DC63F ~ #009559
-   서브1: #F47920 ~ #C9252C  서브2: #14B1E7 ~ #0061AF
-══════════════════════════════════════ */
 :root{
-  /* 배경 (진한 초록 다크) */
-  --bg:#04100a;--bg2:#071710;--bg3:#0c1f15;--bg4:#11271b;--bghov:#152d1f;
+  /* 배경 — 라이트 뉴트럴 */
+  --bg:#f4f5f7;--bg2:#ffffff;--bg3:#f8f9fa;--bg4:#eef0f2;--bghov:#f0f2f4;
   /* 테두리 */
-  --bd:#1a3d27;--bd2:#245234;
-  /* 메인 — 초록 계열 */
+  --bd:#dde1e6;--bd2:#c8cdd4;
+  /* 메인 초록 — 포인트용 */
   --m1:#00854A;--m2:#8DC63F;--m3:#009559;
-  --acc:var(--m1);--acc2:var(--m2);
-  --accg:rgba(0,133,74,.18);--acc2g:rgba(141,198,63,.14);
-  /* 서브1 — 오렌지/레드 (긴급·주의) */
+  --accg:rgba(0,133,74,.08);--acc2g:rgba(141,198,63,.10);
+  /* 서브1 — 긴급/주의 */
   --red:#C9252C;--org:#F47920;
-  --redg:rgba(201,37,44,.15);--orgg:rgba(244,121,32,.14);
-  /* 서브2 — 블루 (정보·보조) */
-  --cy:#14B1E7;--cyd:#0061AF;
-  --cyg:rgba(20,177,231,.13);--cydg:rgba(0,97,175,.15);
+  --redg:rgba(201,37,44,.09);--orgg:rgba(244,121,32,.09);
+  /* 서브2 — 정보/네트워크 */
+  --cy:#0e99cc;--cyd:#0061AF;
+  --cyg:rgba(14,153,204,.08);
   /* 텍스트 */
-  --t1:#d6edd9;--t2:#7daa8a;--t3:#3d6650;--t4:#223a2d;
-  /* 기타 */
-  --r:7px;--rl:12px;
+  --t1:#1c2b22;--t2:#4a5568;--t3:#8a9aaa;--t4:#c4cdd6;
+  /* 공통 */
+  --r:7px;--rl:10px;--sh:0 1px 4px rgba(0,0,0,.07),0 4px 16px rgba(0,0,0,.05);
   --fs:"맑은 고딕","Malgun Gothic","Apple SD Gothic Neo","AppleGothic","굴림","Gulim","Nanum Gothic",sans-serif;
   --fm:"Consolas","Courier New","굴림체","Gulim",monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--fs);font-size:13px}
-
-/* 그리드 배경 */
-body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-  background-image:linear-gradient(rgba(0,133,74,.04) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(0,133,74,.04) 1px,transparent 1px);
-  background-size:36px 36px}
-
-/* 좌측 그라디언트 강조선 */
-body::after{content:'';position:fixed;left:0;top:0;width:2px;height:100%;
-  background:linear-gradient(180deg,var(--m1),var(--m2),var(--m3));pointer-events:none;z-index:999}
-
-.app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+.app{min-height:100vh;display:flex;flex-direction:column}
 
 /* ── TOPBAR ── */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 22px;height:52px;
-  background:linear-gradient(90deg,#030c07,#071710);
-  border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:100;flex-shrink:0}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:54px;
+  background:#fff;border-bottom:1px solid var(--bd);
+  position:sticky;top:0;z-index:100;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+/* 상단 강조선 — 메인+서브 그라디언트 */
+.topbar::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--m1) 0%,var(--m2) 40%,var(--cy) 70%,var(--cyd) 100%)}
 .tl{display:flex;align-items:center;gap:14px}
-.logo{font-family:var(--fm);font-size:11px;font-weight:700;
-  background:linear-gradient(135deg,var(--m1),var(--m2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  border:1px solid var(--m1);border-radius:4px;padding:3px 10px;letter-spacing:1.2px}
-.tl-title{font-size:12px;color:var(--t3);border-left:1px solid var(--bd2);padding-left:14px}
-.tr{display:flex;align-items:center;gap:14px}
-.live{display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;color:var(--m2)}
+.logo{font-family:var(--fm);font-size:11px;font-weight:700;color:#fff;letter-spacing:1.2px;
+  background:linear-gradient(135deg,var(--m1),var(--m3));
+  border-radius:5px;padding:4px 11px}
+.tl-title{font-size:12px;color:var(--t3);border-left:1px solid var(--bd);padding-left:14px}
+.tr{display:flex;align-items:center;gap:16px}
+.live{display:flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;color:var(--m1)}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--m2);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(141,198,63,.5)}50%{opacity:.7;box-shadow:0 0 0 5px rgba(141,198,63,0)}}
 .clock{font-family:var(--fm);font-size:10px;color:var(--t3)}
 .layout{display:flex;flex:1;min-height:0}
 
 /* ── SIDEBAR ── */
-.sidebar{width:214px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--bd);
-  display:flex;flex-direction:column;position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto}
-.nl{font-family:var(--fm);font-size:9px;letter-spacing:1.8px;color:var(--t4);
-  padding:10px 18px 3px;text-transform:uppercase;border-bottom:none}
+.sidebar{width:210px;flex-shrink:0;background:#fff;border-right:1px solid var(--bd);
+  display:flex;flex-direction:column;position:sticky;top:54px;height:calc(100vh - 54px);overflow-y:auto}
+.nl{font-family:var(--fm);font-size:9px;letter-spacing:1.8px;color:var(--t3);
+  padding:14px 18px 4px;text-transform:uppercase}
 .ni{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:12px;color:var(--t2);
-  cursor:pointer;border-left:2px solid transparent;transition:.12s;user-select:none;white-space:nowrap}
-.ni:hover{background:var(--bghov);color:var(--t1)}
-.ni.on{background:var(--accg);color:var(--m2);border-left-color:var(--m1)}
+  cursor:pointer;border-left:2px solid transparent;transition:.12s;user-select:none}
+.ni:hover{background:var(--bg3);color:var(--t1)}
+.ni.on{background:var(--accg);color:var(--m1);border-left-color:var(--m1);font-weight:500}
 .ni .ic{width:16px;text-align:center;font-size:13px}
-.nbadge{margin-left:auto;font-family:var(--fm);font-size:9px;padding:1px 6px;border-radius:8px}
-.br{background:var(--redg);color:var(--red)}.by{background:var(--orgg);color:var(--org)}.bb{background:var(--accg);color:var(--m2)}
+.nbadge{margin-left:auto;font-family:var(--fm);font-size:9px;font-weight:600;padding:2px 7px;border-radius:10px}
+.br{background:var(--redg);color:var(--red)}.by{background:var(--orgg);color:var(--org)}
+.bb{background:var(--accg);color:var(--m1)}
 .sf{margin-top:auto;padding:14px 18px;border-top:1px solid var(--bd);
-  font-family:var(--fm);font-size:9px;color:var(--t3);line-height:1.7}
-.sf-btn{margin-top:6px;background:rgba(201,37,44,.1);border:1px solid rgba(201,37,44,.22);
+  font-family:var(--fm);font-size:9px;color:var(--t3);line-height:1.9}
+.sf-btn{margin-top:7px;background:#fff;border:1px solid rgba(201,37,44,.3);
   border-radius:5px;color:var(--red);font-family:var(--fm);font-size:9px;
-  padding:4px 8px;cursor:pointer;width:100%;text-align:left}
-.sf-btn:hover{background:rgba(201,37,44,.2)}
+  padding:5px 9px;cursor:pointer;width:100%;text-align:left;transition:.12s}
+.sf-btn:hover{background:var(--redg)}
 
 /* ── MAIN ── */
-.main{flex:1;overflow:auto;padding:22px 26px}
+.main{flex:1;overflow:auto;padding:24px 28px;background:var(--bg)}
 .ph{margin-bottom:20px}
 .ph-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
-.pt{font-size:18px;font-weight:700}.pt span{background:linear-gradient(90deg,var(--m1),var(--m2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.ps{font-size:11px;color:var(--t2)}
+.pt{font-size:18px;font-weight:700;color:var(--t1)}
+.pt span{color:var(--m1)}
+.ps{font-size:11px;color:var(--t3)}
 .ha{display:flex;gap:8px}
-.btn{display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:var(--r);font-size:11px;font-family:var(--fm);cursor:pointer;border:none;transition:.12s}
+.btn{display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--r);
+  font-size:11px;font-family:var(--fm);cursor:pointer;border:none;transition:.12s;font-weight:500}
 .bp{background:var(--m1);color:#fff}.bp:hover{background:var(--m3)}
-.bo{background:transparent;color:var(--t2);border:1px solid var(--bd2)}.bo:hover{background:var(--bghov);color:var(--t1)}
+.bo{background:#fff;color:var(--t2);border:1px solid var(--bd)}.bo:hover{background:var(--bg3);color:var(--t1)}
 
-/* ── KPI CARDS ── */
+/* ── KPI ── */
 .krow{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
-.kc{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);
-  padding:14px 16px;position:relative;overflow:hidden;transition:.15s}
-.kc:hover{border-color:var(--bd2);transform:translateY(-1px)}
-.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kc{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);
+  padding:16px 18px;position:relative;overflow:hidden;
+  transition:.15s;box-shadow:var(--sh)}
+.kc:hover{transform:translateY(-2px);box-shadow:0 4px 18px rgba(0,0,0,.10)}
+.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
 .ku::before{background:linear-gradient(90deg,var(--red),var(--org))}
-.kw::before{background:linear-gradient(90deg,var(--org),#f5c842)}
+.kw::before{background:var(--org)}
 .ko::before{background:linear-gradient(90deg,var(--m1),var(--m2))}
 .ki::before{background:linear-gradient(90deg,var(--cy),var(--cyd))}
 .kn::before{background:linear-gradient(90deg,var(--m2),var(--m3))}
 .kt::before{background:linear-gradient(90deg,var(--m1),var(--cy))}
-.klb{font-size:10px;color:var(--t3);margin-bottom:7px;font-family:var(--fm)}
-.kv{font-size:30px;font-weight:700;font-family:var(--fm);line-height:1}
-.ku .kv{color:var(--red)}.kw .kv{color:var(--org)}.ko .kv{color:var(--m2)}
-.ki .kv{color:var(--cy)}.kn .kv{color:var(--m2)}.kt .kv{color:var(--m1)}
-.ksb{font-size:10px;color:var(--t3);margin-top:5px}
+.klb{font-size:10px;color:var(--t3);margin-bottom:8px;font-family:var(--fm)}
+.kv{font-size:32px;font-weight:700;font-family:var(--fm);line-height:1}
+.ku .kv{color:var(--red)}.kw .kv{color:var(--org)}.ko .kv{color:var(--m1)}
+.ki .kv{color:var(--cy)}.kn .kv{color:var(--m3)}.kt .kv{color:var(--m1)}
+.ksb{font-size:10px;color:var(--t3);margin-top:6px}
 
 /* ── PROGRESS ── */
-.psec{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:18px 22px;margin-bottom:20px}
-.pst{font-size:12px;font-weight:500;margin-bottom:14px;color:var(--t2);display:flex;align-items:center;gap:6px}
-.pst b{color:var(--t1);font-size:13px}
-.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.pi{display:flex;flex-direction:column;gap:5px}
+.psec{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);
+  padding:18px 22px;margin-bottom:20px;box-shadow:var(--sh)}
+.pst{font-size:12px;font-weight:500;margin-bottom:14px;color:var(--t2)}
+.pst b{color:var(--t1)}
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.pi{display:flex;flex-direction:column;gap:6px}
 .pinfo{display:flex;justify-content:space-between;align-items:center}
 .pn{font-size:11px;color:var(--t2)}.pp{font-family:var(--fm);font-size:11px}
-.pbg{height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden}
+.pbg{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
 .pb{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
-.pcts{display:flex;gap:7px;font-family:var(--fm);font-size:9px}
-.cr{color:var(--red)}.cy2{color:var(--org)}.cg{color:var(--m2)}
+.pcts{display:flex;gap:8px;font-family:var(--fm);font-size:9px}
+.cr{color:var(--red)}.cy2{color:var(--org)}.cg{color:var(--m1)}
 
 /* ── ALERT ── */
-.ab{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:var(--r);
-  margin-bottom:14px;font-size:11px;border-left:3px solid var(--red);
-  background:linear-gradient(90deg,rgba(201,37,44,.12),rgba(244,121,32,.06));line-height:1.5}
+.ab{display:flex;align-items:flex-start;gap:10px;padding:11px 14px;border-radius:var(--r);
+  margin-bottom:16px;font-size:11px;border:1px solid rgba(201,37,44,.2);
+  border-left:3px solid var(--red);background:var(--redg);line-height:1.6;color:#8a1a1e}
 .abi{font-size:14px;flex-shrink:0;margin-top:1px}
 
 /* ── BANNER ── */
-.nbb{background:linear-gradient(135deg,#0b2016,#061410);border:1px solid var(--bd2);
-  border-radius:var(--rl);padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:18px}
-.nbb-ic{font-size:28px}.nbb-ct{flex:1}
-.nbb-t{font-size:12px;font-weight:600;margin-bottom:3px}.nbb-d{font-size:10px;color:var(--t2)}
+.nbb{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);
+  padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;gap:18px;
+  box-shadow:var(--sh);border-left:3px solid var(--m1)}
+.nbb-ic{font-size:26px}.nbb-ct{flex:1}
+.nbb-t{font-size:12px;font-weight:600;margin-bottom:3px;color:var(--t1)}
+.nbb-d{font-size:10px;color:var(--t3)}
 .nbb-ac{display:flex;gap:8px;flex-wrap:wrap}
 
 /* ── TABLE ── */
-.tw{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);overflow:hidden;margin-bottom:16px}
-.thdr{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;
-  border-bottom:1px solid var(--bd);background:var(--bg4)}
-.thdr-t{font-size:12px;font-weight:500;color:var(--t2)}
+.tw{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);
+  overflow:hidden;margin-bottom:16px;box-shadow:var(--sh)}
+.thdr{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;
+  border-bottom:1px solid var(--bd);background:var(--bg3)}
+.thdr-t{font-size:12px;font-weight:600;color:var(--t1)}
 .rcnt{font-family:var(--fm);font-size:10px;color:var(--t3)}
 .tscroll{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:11px}
-thead tr{background:rgba(0,0,0,.3)}
-th{padding:9px 12px;text-align:left;font-family:var(--fm);font-size:9px;color:var(--t3);
-  letter-spacing:.6px;text-transform:uppercase;border-bottom:1px solid var(--bd);white-space:nowrap;font-weight:600}
-td{padding:9px 12px;border-bottom:1px solid rgba(26,61,39,.5);white-space:nowrap;vertical-align:middle}
+thead tr{background:var(--bg3)}
+th{padding:9px 13px;text-align:left;font-family:var(--fm);font-size:9px;
+  color:var(--t3);letter-spacing:.6px;text-transform:uppercase;
+  border-bottom:1px solid var(--bd);white-space:nowrap;font-weight:600}
+td{padding:9px 13px;border-bottom:1px solid var(--bg4);white-space:nowrap;vertical-align:middle}
 tbody tr{transition:.1s;cursor:pointer}
-tbody tr:hover{background:var(--bghov)}
+tbody tr:hover{background:#f0f7f3}
 tbody tr:last-child td{border-bottom:none}
 
 /* ── STATUS ── */
-.st{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:4px;
+.st{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:4px;
   font-family:var(--fm);font-size:9px;font-weight:700;white-space:nowrap}
 .st::before{content:'●';font-size:7px}
-.su{background:rgba(201,37,44,.15);color:var(--red);border:1px solid rgba(201,37,44,.3)}
-.sw{background:rgba(244,121,32,.15);color:var(--org);border:1px solid rgba(244,121,32,.3)}
-.sg{background:rgba(141,198,63,.15);color:var(--m2);border:1px solid rgba(141,198,63,.3)}
-.sc{background:rgba(20,177,231,.12);color:var(--cy);border:1px solid rgba(20,177,231,.28)}
+.su{background:rgba(201,37,44,.08);color:var(--red);border:1px solid rgba(201,37,44,.2)}
+.sw{background:rgba(244,121,32,.08);color:var(--org);border:1px solid rgba(244,121,32,.2)}
+.sg{background:rgba(0,133,74,.08);color:var(--m1);border:1px solid rgba(0,133,74,.2)}
+.sc{background:var(--cyg);color:var(--cy);border:1px solid rgba(14,153,204,.2)}
 
-/* ── VERSION ── */
+/* ── VERSION / TEXT ── */
 .vc{font-family:var(--fm);font-size:10px;color:var(--t2)}
-.vr{font-family:var(--fm);font-size:10px;color:var(--cy)}
+.vr{font-family:var(--fm);font-size:10px;color:var(--m1)}
 .vr::before{content:'→ ';color:var(--m2);font-size:9px}
-.vok{font-family:var(--fm);font-size:10px;color:var(--m2)}
-.veol{font-family:var(--fm);font-size:9px;color:var(--red);background:rgba(201,37,44,.14);
-  padding:1px 4px;border-radius:3px;margin-left:3px}
-.hn{font-family:var(--fm);font-size:10px;color:var(--m2)}
+.vok{font-family:var(--fm);font-size:10px;color:var(--m1)}
+.veol{font-family:var(--fm);font-size:9px;color:var(--red);background:var(--redg);
+  padding:1px 5px;border-radius:3px;margin-left:3px;border:1px solid rgba(201,37,44,.15)}
+.hn{font-family:var(--fm);font-size:10px;color:var(--m1);font-weight:500}
 .ip{font-family:var(--fm);font-size:10px;color:var(--t3)}
-.tag{display:inline-block;background:rgba(17,39,27,.7);border:1px solid var(--bd2);
-  border-radius:4px;padding:1px 6px;font-size:10px;font-family:var(--fm)}
+.tag{display:inline-block;background:var(--bg4);border:1px solid var(--bd);
+  border-radius:4px;padding:1px 7px;font-size:10px;font-family:var(--fm);color:var(--t2)}
 .pri{font-family:var(--fm);font-size:11px;font-weight:700}
-.p1{color:var(--red)}.p2{color:var(--org)}.p3{color:var(--m2)}
+.p1{color:var(--red)}.p2{color:var(--org)}.p3{color:var(--m1)}
 
 /* ── DETAIL PANEL ── */
-.dp{position:fixed;right:-444px;top:52px;width:444px;height:calc(100vh - 52px);
-  background:var(--bg2);border-left:1px solid var(--bd2);z-index:200;
-  transition:right .28s cubic-bezier(.4,0,.2,1);overflow-y:auto}
+.dp{position:fixed;right:-450px;top:54px;width:450px;height:calc(100vh - 54px);
+  background:#fff;border-left:1px solid var(--bd);z-index:200;
+  transition:right .28s cubic-bezier(.4,0,.2,1);overflow-y:auto;
+  box-shadow:-4px 0 24px rgba(0,0,0,.08)}
 .dp.open{right:0}
-.dph{padding:16px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;
-  justify-content:space-between;
-  background:linear-gradient(90deg,var(--bg4),var(--bg3))}
-.dpt{font-size:13px;font-weight:600;color:var(--m2)}
+.dph{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;
+  align-items:center;justify-content:space-between;background:var(--bg3)}
+.dph::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--m1),var(--m2))}
+.dph{position:relative}
+.dpt{font-size:13px;font-weight:600;color:var(--t1)}
 .dpc{background:none;border:none;color:var(--t3);font-size:16px;cursor:pointer;
   padding:3px 7px;border-radius:4px;transition:.1s}
-.dpc:hover{background:var(--bghov);color:var(--t1)}
-.dpb{padding:18px}
+.dpc:hover{background:var(--bg4);color:var(--t1)}
+.dpb{padding:20px}
 .dps{margin-bottom:18px}
-.dpst{font-family:var(--fm);font-size:9px;letter-spacing:1.5px;color:var(--m3);
-  text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;
-  border-bottom:1px solid var(--bd)}
+.dpst{font-family:var(--fm);font-size:9px;letter-spacing:1.5px;color:var(--m1);
+  text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;
+  border-bottom:2px solid var(--accg);font-weight:600}
 .dpr{display:flex;justify-content:space-between;align-items:flex-start;
-  padding:5px 0;border-bottom:1px solid rgba(26,61,39,.4)}
+  padding:6px 0;border-bottom:1px solid var(--bg4)}
 .dpr:last-child{border-bottom:none}
-.drk{font-size:11px;color:var(--t2)}
-.drv{font-family:var(--fm);font-size:11px;color:var(--t1);text-align:right;max-width:250px;word-break:break-all}
-.drv.ur{color:var(--red)}.drv.wa{color:var(--org)}.drv.ok{color:var(--m2)}.drv.cy{color:var(--cy)}
+.drk{font-size:11px;color:var(--t3)}
+.drv{font-family:var(--fm);font-size:11px;color:var(--t1);text-align:right;
+  max-width:260px;word-break:break-all}
+.drv.ur{color:var(--red)}.drv.wa{color:var(--org)}
+.drv.ok{color:var(--m1);font-weight:500}.drv.cy{color:var(--cy)}
 
 /* ── FILTER ── */
 .fb{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
-.sb2{display:flex;align-items:center;gap:7px;flex:1;min-width:220px;background:var(--bg3);
-  border:1px solid var(--bd2);border-radius:var(--r);padding:7px 12px}
+.sb2{display:flex;align-items:center;gap:7px;flex:1;min-width:220px;background:#fff;
+  border:1px solid var(--bd);border-radius:var(--r);padding:7px 12px;transition:.12s}
+.sb2:focus-within{border-color:var(--m1);box-shadow:0 0 0 3px rgba(0,133,74,.08)}
 .sb2 input{background:none;border:none;outline:none;color:var(--t1);font-family:var(--fm);font-size:11px;flex:1}
 .sb2 input::placeholder{color:var(--t3)}
-.fs{background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);padding:7px 10px;
-  color:var(--t2);font-family:var(--fm);font-size:11px;cursor:pointer;outline:none;min-width:125px}
-.fs option{background:var(--bg4)}
+.fs{background:#fff;border:1px solid var(--bd);border-radius:var(--r);padding:7px 10px;
+  color:var(--t2);font-family:var(--fm);font-size:11px;cursor:pointer;
+  outline:none;min-width:125px;transition:.12s}
+.fs:focus{border-color:var(--m1)}
 
 /* ── VIEWS ── */
 .vs{display:none}.vs.on{display:block}
 
 /* ── GRP ── */
 .gcards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.gc{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);padding:14px}
+.gc{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);
+  padding:16px;box-shadow:var(--sh)}
 
 /* ── SCROLLBAR ── */
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg3)}
 ::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--m1)}
 
 /* ── ANIMATION ── */
-.fade{animation:fi .35s ease both}
-@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.kc:nth-child(1){animation:fi .4s .04s both}.kc:nth-child(2){animation:fi .4s .08s both}
-.kc:nth-child(3){animation:fi .4s .12s both}.kc:nth-child(4){animation:fi .4s .16s both}
-.kc:nth-child(5){animation:fi .4s .20s both}.kc:nth-child(6){animation:fi .4s .24s both}
+.fade{animation:fi .3s ease both}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.kc:nth-child(1){animation:fi .35s .03s both}.kc:nth-child(2){animation:fi .35s .07s both}
+.kc:nth-child(3){animation:fi .35s .11s both}.kc:nth-child(4){animation:fi .35s .15s both}
+.kc:nth-child(5){animation:fi .35s .19s both}.kc:nth-child(6){animation:fi .35s .23s both}
 
 /* ── IMPORT ── */
-.import-zone{border:2px dashed var(--bd2);border-radius:var(--rl);background:var(--bg3);
-  padding:50px 24px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:20px;position:relative}
+.import-zone{border:2px dashed var(--bd2);border-radius:var(--rl);background:#fff;
+  padding:52px 24px;text-align:center;cursor:pointer;transition:.2s;
+  margin-bottom:20px;position:relative;box-shadow:var(--sh)}
 .import-zone:hover,.import-zone.drag{border-color:var(--m1);background:var(--accg)}
 .import-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .iz-ico{font-size:40px;margin-bottom:14px}
 .iz-title{font-size:15px;font-weight:600;margin-bottom:6px;color:var(--t1)}
-.iz-sub{font-size:11px;color:var(--t2);margin-bottom:6px}
+.iz-sub{font-size:11px;color:var(--t2);margin-bottom:5px}
 .iz-hint{font-size:10px;color:var(--t3);font-family:var(--fm)}
-.ir{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rl);
-  padding:14px 18px;margin-bottom:18px;display:none}
+.ir{background:#fff;border:1px solid var(--bd);border-radius:var(--rl);
+  padding:14px 18px;margin-bottom:18px;display:none;box-shadow:var(--sh)}
 .ir.show{display:block}
 .ir-row{display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:4px}
 .ir-row:last-child{margin-bottom:0}
-.ir-ok{color:var(--m2)}.ir-er{color:var(--red)}
+.ir-ok{color:var(--m1)}.ir-er{color:var(--red)}
 
 /* ── TOAST ── */
-.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);
-  background:var(--bg4);border:1px solid var(--bd2);border-radius:8px;
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:#fff;border:1px solid var(--bd);border-radius:8px;
   padding:11px 20px;font-size:12px;z-index:9999;
+  box-shadow:0 4px 20px rgba(0,0,0,.12);
   transition:transform .3s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;pointer-events:none}
 .toast.show{transform:translateX(-50%) translateY(0)}
-.toast.ok{border-color:var(--m1);color:var(--m2)}.toast.er{border-color:var(--red);color:var(--red)}
+.toast.ok{border-left:3px solid var(--m1);color:var(--m1)}
+.toast.er{border-left:3px solid var(--red);color:var(--red)}
 
 /* ── CACHE BADGE ── */
-.cache-badge{display:inline-block;background:rgba(0,149,89,.15);border:1px solid rgba(0,149,89,.3);
-  border-radius:4px;font-family:var(--fm);font-size:9px;color:var(--m3);padding:1px 6px;margin-left:6px}
+.cache-badge{display:inline-block;background:var(--accg);border:1px solid rgba(0,133,74,.2);
+  border-radius:4px;font-family:var(--fm);font-size:9px;
+  color:var(--m1);padding:1px 7px;margin-left:6px;font-weight:500}
 
-/* ── TOP BAR ACCENT LINE ── */
-.topbar-line{height:2px;background:linear-gradient(90deg,var(--m1),var(--m2),var(--cy),var(--cyd));
-  position:sticky;top:52px;z-index:99;flex-shrink:0}
+/* ── SECTION DIVIDER ── */
+.sec-div{height:1px;background:linear-gradient(90deg,var(--m1),transparent);
+  margin:20px 0;opacity:.3}
 </style>
 </head>
 <body>
@@ -279,13 +284,12 @@ tbody tr:last-child td{border-bottom:none}
     <div class="clock" id="clock">--:--:--</div>
   </div>
 </header>
-<div class="topbar-line"></div>
 
 <div class="layout">
 
 <!-- SIDEBAR -->
 <nav class="sidebar">
-  <div style="height:6px"></div>
+  <div style="height:4px"></div>
   <div class="nl">대시보드</div>
   <div class="ni" id="nav-dash" onclick="sw('dash',this)"><span class="ic">📊</span>종합 현황</div>
   <div class="nl">조회</div>
@@ -301,8 +305,8 @@ tbody tr:last-child td{border-bottom:none}
   <div class="ni" onclick="exportExcel()"><span class="ic">📤</span>리포트 Export</div>
   <div class="sf">
     <div id="sf-file">파일: 미업로드</div>
-    <div id="sf-cnt" style="margin-top:3px;color:var(--t4)">서버 — · 네트워크 —</div>
-    <div id="sf-time" style="margin-top:3px;color:var(--t4)"></div>
+    <div id="sf-cnt" style="margin-top:3px">서버 — · 네트워크 —</div>
+    <div id="sf-time" style="margin-top:3px"></div>
     <button class="sf-btn" id="sf-clear" onclick="clearCache()" style="display:none">🗑 저장 데이터 초기화</button>
   </div>
 </nav>
@@ -326,27 +330,27 @@ tbody tr:last-child td{border-bottom:none}
   <div class="ir" id="import-result"></div>
   <div class="tw">
     <div class="thdr"><div class="thdr-t">📋 파일 양식 — 주요시스템_암호화변환 시트</div></div>
-    <div style="padding:16px 20px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+    <div style="padding:18px 20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
         <div>
-          <div style="font-size:11px;font-weight:600;color:var(--m2);margin-bottom:8px">컬럼 구조 (헤더 2행)</div>
-          <div style="font-family:var(--fm);font-size:10px;color:var(--t2);line-height:2">
+          <div style="font-size:11px;font-weight:600;color:var(--m1);margin-bottom:8px">컬럼 구조 (헤더 2행)</div>
+          <div style="font-family:var(--fm);font-size:10px;color:var(--t2);line-height:2.1">
             [A] No. [B] Hostname [C] IP<br>[D~H] 자산유형·세부분류·제조사·Boxname·모델명<br>
             [I~K] OS 현재버전·권고버전·EOL<br>[L~P] DB구분·DBType·DB_Version·권고버전·EOL<br>
             [Q~T] WAS구분·WASType·권고버전·EOL<br>[U~V] JDK버전·JDK권고버전<br>[W~AM] 서비스정보·담당자정보
           </div>
         </div>
         <div>
-          <div style="font-size:11px;font-weight:600;color:var(--m2);margin-bottom:8px">자동 판정 EOL 룰</div>
-          <div style="font-family:var(--fm);font-size:10px;line-height:2.2">
-            <span style="color:var(--red)">긴급:</span> <span style="color:var(--t2)">Win2012R2 · ESXi7.0 · Oracle11g · SQL2014 · Tomcat8/9 · WAS8.5</span><br>
-            <span style="color:var(--org)">주의:</span> <span style="color:var(--t2)">AIX SP11미만 · RHEL 8.10미만</span><br>
-            <span style="color:var(--cy)">네트워크:</span> <span style="color:var(--t2)">IOS-XE 17.12미만 · NX-OS 7.x · N3K-10GX HW EOS</span>
+          <div style="font-size:11px;font-weight:600;color:var(--m1);margin-bottom:8px">자동 판정 EOL 룰</div>
+          <div style="font-family:var(--fm);font-size:10px;line-height:2.3">
+            <span style="color:var(--red);font-weight:600">긴급:</span> <span style="color:var(--t2)">Win2012R2 · ESXi7.0 · Oracle11g · SQL2014 · Tomcat8/9 · WAS8.5</span><br>
+            <span style="color:var(--org);font-weight:600">주의:</span> <span style="color:var(--t2)">AIX SP11미만 · RHEL 8.10미만</span><br>
+            <span style="color:var(--cy);font-weight:600">네트워크:</span> <span style="color:var(--t2)">IOS-XE 17.12미만 · NX-OS 7.x · N3K-10GX EOS</span>
           </div>
         </div>
       </div>
-      <div style="margin-top:14px;padding:10px 12px;background:var(--accg);border-radius:6px;border:1px solid var(--bd2);font-size:10px;color:var(--t2)">
-        💡 자산유형 컬럼이 <strong style="color:var(--m2)">"네트워크"</strong>이면 네트워크 장비, 나머지는 서버로 분류됩니다. 데이터는 localStorage에 자동 저장되어 재접속 시에도 유지됩니다.
+      <div style="margin-top:16px;padding:10px 14px;background:var(--accg);border-radius:6px;border:1px solid rgba(0,133,74,.15);font-size:10px;color:var(--m1)">
+        💡 자산유형 컬럼이 <strong>"네트워크"</strong>이면 네트워크 장비, 나머지는 서버로 분류됩니다. 데이터는 localStorage에 자동 저장되어 재접속 시에도 유지됩니다.
       </div>
     </div>
   </div>
@@ -409,8 +413,7 @@ tbody tr:last-child td{border-bottom:none}
     <div class="thdr"><div class="thdr-t">🖥 서버 버전 현황</div><div class="rcnt" id="sc">— records</div></div>
     <div class="tscroll"><table id="st">
       <thead><tr><th>ID</th><th>Hostname</th><th>IP</th><th>자산유형</th><th>제조사/모델</th><th>OS 현재버전</th><th>OS 권고</th><th>DB</th><th>WAS</th><th>상태</th><th>우선</th></tr></thead>
-      <tbody id="sb"></tbody>
-    </table></div>
+      <tbody id="sb"></tbody></table></div>
   </div>
 </div>
 
@@ -433,8 +436,7 @@ tbody tr:last-child td{border-bottom:none}
     <div class="thdr"><div class="thdr-t">🌐 네트워크 펌웨어 현황</div><div class="rcnt" id="nc">— records</div></div>
     <div class="tscroll"><table id="nt">
       <thead><tr><th>ID</th><th>Hostname</th><th>IP</th><th>모델명</th><th>플랫폼</th><th>현재 펌웨어</th><th>권고 펌웨어</th><th>EOL/EOS</th><th>CVE</th><th>상태</th></tr></thead>
-      <tbody id="nb"></tbody>
-    </table></div>
+      <tbody id="nb"></tbody></table></div>
   </div>
 </div>
 
@@ -474,7 +476,6 @@ tbody tr:last-child td{border-bottom:none}
   <div class="dph"><div class="dpt" id="dpt">상세 정보</div><button class="dpc" onclick="cpanel()">✕</button></div>
   <div class="dpb" id="dpb"></div>
 </div>
-
 </div>
 <div class="toast" id="toast"></div>
 
@@ -499,28 +500,27 @@ function processFile(file){if(!window.XLSX){toast('SheetJS 로딩 중입니다, 
 function saveToStorage(fname){try{localStorage.setItem('infra_srv',JSON.stringify(SRV));localStorage.setItem('infra_net',JSON.stringify(NET));localStorage.setItem('infra_fname',fname||'');localStorage.setItem('infra_time',new Date().toISOString());}catch(e){console.warn('저장 실패:',e);}}
 function loadFromStorage(){try{var sj=localStorage.getItem('infra_srv'),nj=localStorage.getItem('infra_net'),fn=localStorage.getItem('infra_fname'),ti=localStorage.getItem('infra_time');if(sj&&nj){SRV=JSON.parse(sj);NET=JSON.parse(nj);importedFileName=fn||'(저장본)';return{fname:fn,time:ti,ok:true};}}catch(e){console.warn('복원 실패:',e);}return{ok:false};}
 function clearCache(){if(!confirm('저장된 데이터를 삭제하고 Import 화면으로 돌아갑니다.\n계속하시겠습니까?'))return;try{localStorage.removeItem('infra_srv');localStorage.removeItem('infra_net');localStorage.removeItem('infra_fname');localStorage.removeItem('infra_time');}catch(e){}SRV=[];NET=[];importedFileName='';document.getElementById('data-src').textContent='데이터 없음 — Import 필요';document.getElementById('sf-file').textContent='파일: 미업로드';document.getElementById('sf-cnt').textContent='서버 — · 네트워크 —';document.getElementById('sf-time').textContent='';document.getElementById('sf-clear').style.display='none';['badge-srv','badge-net','badge-urg'].forEach(function(id){document.getElementById(id).textContent='—';});sw('import',document.getElementById('nav-import'));toast('저장 데이터가 초기화되었습니다','ok');}
-function applyData(fname,fromCache){var su=SRV.filter(function(s){return s.s==='긴급';}).length,nu=NET.filter(function(n){return n.s==='긴급';}).length;document.getElementById('badge-srv').textContent='긴급 '+su;document.getElementById('badge-net').textContent='긴급 '+nu;document.getElementById('badge-urg').textContent=(su+nu)+'건';var label=fromCache?'[캐시됨] ':'';document.getElementById('data-src').textContent=label+(fname||'파일 로드됨');document.getElementById('sf-file').textContent='파일: '+(fname||'-');document.getElementById('sf-cnt').textContent='서버 '+SRV.length+'대 · 네트워크 '+NET.length+'대';document.getElementById('sf-clear').style.display='block';var fnLabel=fromCache?((fname||'저장본')+' <span class="cache-badge">캐시됨</span>'):fname||'—';document.getElementById('dash-fn').innerHTML=fnLabel;document.getElementById('dash-fd').textContent='서버 '+SRV.length+'대 + 네트워크 '+NET.length+'대 파싱 완료'+(fromCache?' (재접속 시 자동 복원)':'');if(fromCache){toast('이전 저장본 복원됨 (서버 '+SRV.length+'대 + 네트워크 '+NET.length+'대)','ok');}else{showResult([{ok:true,msg:'✅ 서버 '+SRV.length+'건 파싱 완료 (긴급 '+su+'대)'},{ok:true,msg:'✅ 네트워크 '+NET.length+'건 파싱 완료 (긴급 '+nu+'대)'},{ok:true,msg:'✅ 상태/권고버전 자동 판정 완료 — EOL 룰엔진 적용'},{ok:true,msg:'💾 localStorage 자동 저장됨 (재접속 시에도 유지)'}]);toast('파일 로드 완료 (서버 '+SRV.length+'대 + 네트워크 '+NET.length+'대)','ok');}sw('dash',document.getElementById('nav-dash'));}
+function applyData(fname,fromCache){var su=SRV.filter(function(s){return s.s==='긴급';}).length,nu=NET.filter(function(n){return n.s==='긴급';}).length;document.getElementById('badge-srv').textContent='긴급 '+su;document.getElementById('badge-net').textContent='긴급 '+nu;document.getElementById('badge-urg').textContent=(su+nu)+'건';document.getElementById('data-src').textContent=(fromCache?'[캐시됨] ':'')+( fname||'파일 로드됨');document.getElementById('sf-file').textContent='파일: '+(fname||'-');document.getElementById('sf-cnt').textContent='서버 '+SRV.length+'대 · 네트워크 '+NET.length+'대';document.getElementById('sf-clear').style.display='block';document.getElementById('dash-fn').innerHTML=(fromCache?((fname||'저장본')+' <span class="cache-badge">캐시됨</span>'):fname||'—');document.getElementById('dash-fd').textContent='서버 '+SRV.length+'대 + 네트워크 '+NET.length+'대 파싱 완료'+(fromCache?' (재접속 시 자동 복원)':'');if(fromCache){toast('이전 저장본 복원됨 (서버 '+SRV.length+'대 + 네트워크 '+NET.length+'대)','ok');}else{showResult([{ok:true,msg:'✅ 서버 '+SRV.length+'건 파싱 완료 (긴급 '+su+'대)'},{ok:true,msg:'✅ 네트워크 '+NET.length+'건 파싱 완료 (긴급 '+nu+'대)'},{ok:true,msg:'✅ 상태/권고버전 자동 판정 완료 — EOL 룰엔진 적용'},{ok:true,msg:'💾 localStorage 자동 저장됨 (재접속 시에도 유지)'}]);toast('파일 로드 완료 (서버 '+SRV.length+'대 + 네트워크 '+NET.length+'대)','ok');}sw('dash',document.getElementById('nav-dash'));}
 var SC={긴급:'su',주의:'sw',양호:'sg',확인필요:'sc'};
 function sb(s){return'<span class="st '+(SC[s]||'sc')+'">'+(s||'?')+'</span>';}
-function cveHtml(v){var c={최고:'var(--red)',고:'var(--org)',중:'#f5c842',저:'var(--m2)','-':'var(--t3)'};return'<span style="font-family:var(--fm);font-size:10px;font-weight:700;color:'+(c[v]||'var(--t2)')+'">'+v+'</span>';}
+function cveHtml(v){var c={최고:'var(--red)',고:'var(--org)',중:'#d4a000',저:'var(--m1)','-':'var(--t3)'};return'<span style="font-family:var(--fm);font-size:10px;font-weight:700;color:'+(c[v]||'var(--t2)')+'">'+v+'</span>';}
 function tick(){var n=new Date();document.getElementById('clock').textContent=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')+' '+String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');}setInterval(tick,1000);tick();
 function sw(name,el){document.querySelectorAll('.vs').forEach(function(v){v.classList.remove('on');});document.querySelectorAll('.ni').forEach(function(n){n.classList.remove('on');});var view=document.getElementById('v-'+name);if(view){view.classList.add('on');view.classList.remove('fade');void view.offsetWidth;view.classList.add('fade');}if(el)el.classList.add('on');if(name==='dash')reloadDash();if(name==='srv')rSrv();if(name==='net')rNet();if(name==='urg')rUrg();if(name==='os')rOS();if(name==='mw')rMW();if(name==='grp')rGRP();cpanel();}
 function pct(a,b){return b>0?Math.round(a/b*100):0;}
-function reloadDash(){if(!SRV.length&&!NET.length){document.getElementById('dash-info').textContent='데이터 없음 — 마스터파일을 Import 하세요';document.getElementById('krow').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--t3)">마스터파일 Import 후 데이터가 표시됩니다</div>';document.getElementById('pgrid').innerHTML='';document.getElementById('top-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:20px">데이터 없음</td></tr>';return;}var total=SRV.length+NET.length,urg=SRV.filter(function(s){return s.s==='긴급';}).length+NET.filter(function(n){return n.s==='긴급';}).length,cau=SRV.filter(function(s){return s.s==='주의';}).length+NET.filter(function(n){return n.s==='주의';}).length,ok=SRV.filter(function(s){return s.s==='양호';}).length+NET.filter(function(n){return n.s==='양호';}).length,today=new Date().toISOString().split('T')[0];document.getElementById('dash-info').textContent='기준일: '+today+' | 전체 자산 '+total+'대 (서버 '+SRV.length+'대 + 네트워크 '+NET.length+'대) | '+importedFileName;document.getElementById('krow').innerHTML='<div class="kc ku"><div class="klb">긴급 (EOL 초과)</div><div class="kv">'+urg+'</div><div class="ksb">전체 '+pct(urg,total)+'%</div></div><div class="kc kw"><div class="klb">주의 (업그레이드 권고)</div><div class="kv">'+cau+'</div><div class="ksb">전체 '+pct(cau,total)+'%</div></div><div class="kc ko"><div class="klb">양호 (최신/유지)</div><div class="kv">'+ok+'</div><div class="ksb">전체 '+pct(ok,total)+'%</div></div><div class="kc ki"><div class="klb">서버 자산</div><div class="kv">'+SRV.length+'</div><div class="ksb">물리 '+SRV.filter(function(s){return s.cat==='물리';}).length+' · 논리 '+SRV.filter(function(s){return s.cat==='논리';}).length+' · 박스 '+SRV.filter(function(s){return s.cat==='박스';}).length+'</div></div><div class="kc kn"><div class="klb">네트워크 장비</div><div class="kv">'+NET.length+'</div><div class="ksb">Cisco 전 기종</div></div><div class="kc kt"><div class="klb">전체 자산</div><div class="kv">'+total+'</div><div class="ksb">26년 표준화 대상</div></div>';var su=SRV.filter(function(s){return s.s==='긴급';}).length,sc2=SRV.filter(function(s){return s.s==='주의';}).length,so=SRV.filter(function(s){return s.s==='양호';}).length,nu=NET.filter(function(n){return n.s==='긴급';}).length,nc2=NET.filter(function(n){return n.s==='주의';}).length,no=NET.filter(function(n){return n.s==='양호';}).length;document.getElementById('pgrid').innerHTML='<div class="pi"><div class="pinfo"><span class="pn">서버 전체</span><span class="pp" style="color:var(--red)">긴급 '+pct(su,SRV.length)+'%</span></div><div class="pbg"><div class="pb" style="width:0%;background:linear-gradient(90deg,var(--m1),var(--m2))" data-w="'+pct(sc2+so,SRV.length)+'%"></div></div><div class="pcts"><span class="cr">긴급 '+su+'</span><span class="cy2">주의 '+sc2+'</span><span class="cg">양호 '+so+'</span></div></div><div class="pi"><div class="pinfo"><span class="pn">네트워크</span><span class="pp" style="color:var(--red)">긴급 '+pct(nu,NET.length)+'%</span></div><div class="pbg"><div class="pb" style="width:0%;background:linear-gradient(90deg,var(--m1),var(--m2))" data-w="'+pct(nc2+no,NET.length)+'%"></div></div><div class="pcts"><span class="cr">긴급 '+nu+'</span><span class="cy2">주의 '+nc2+'</span><span class="cg">양호 '+no+'</span></div></div>';var alertEl=document.getElementById('dash-alert');if(urg>0){alertEl.style.display='flex';document.getElementById('dash-alert-text').innerHTML='<strong>EOL 초과 자산 '+urg+'대 감지</strong> — 즉시 조치 필요. <strong style="color:var(--red)">긴급 조치 목록을 확인하세요.</strong>';}else{alertEl.style.display='none';}var topItems=SRV.filter(function(s){return s.s==='긴급';}).concat(NET.filter(function(n){return n.s==='긴급';})).slice(0,7);var ranks=['①','②','③','④','⑤','⑥','⑦'];document.getElementById('top-tbody').innerHTML=topItems.map(function(d,i){var isSrv=d.os!==undefined,cur=isSrv?d.os:d.fw,rec=isSrv?d.os_r:d.fw_r,prob=isSrv?(d.os.includes('2012')?'OS EOL':d.os.includes('ESXi 7')?'OS EOL':d.db!=='-'?'DB EOL':d.was!=='-'?'WAS EOL':'버전 이슈'):'FW EOL/EOS';return'<tr onclick="opd('+JSON.stringify(d).replace(/"/g,'&quot;')+')"><td><span class="pri p1">'+ranks[i]+' P1</span></td><td><span class="hn">'+d.hn+'</span></td><td class="ip">'+d.id+'</td><td><span class="vc">'+cur+'</span><span class="veol">EOL</span></td><td style="font-size:10px;color:var(--red)">'+prob+'</td><td><span class="vr">'+rec+'</span></td><td>'+sb(d.s)+'</td></tr>';}).join('');setTimeout(function(){document.querySelectorAll('[data-w]').forEach(function(b){var w=b.getAttribute('data-w');b.style.width='0%';requestAnimationFrame(function(){setTimeout(function(){b.style.width=w;},50);});});},100);}
+function reloadDash(){if(!SRV.length&&!NET.length){document.getElementById('dash-info').textContent='데이터 없음 — 마스터파일을 Import 하세요';document.getElementById('krow').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--t3)">마스터파일 Import 후 데이터가 표시됩니다</div>';document.getElementById('pgrid').innerHTML='';document.getElementById('top-tbody').innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:24px">데이터 없음</td></tr>';return;}var total=SRV.length+NET.length,urg=SRV.filter(function(s){return s.s==='긴급';}).length+NET.filter(function(n){return n.s==='긴급';}).length,cau=SRV.filter(function(s){return s.s==='주의';}).length+NET.filter(function(n){return n.s==='주의';}).length,ok=SRV.filter(function(s){return s.s==='양호';}).length+NET.filter(function(n){return n.s==='양호';}).length,today=new Date().toISOString().split('T')[0];document.getElementById('dash-info').textContent='기준일: '+today+' | 전체 자산 '+total+'대 (서버 '+SRV.length+'대 + 네트워크 '+NET.length+'대) | '+importedFileName;document.getElementById('krow').innerHTML='<div class="kc ku"><div class="klb">긴급 (EOL 초과)</div><div class="kv">'+urg+'</div><div class="ksb">전체 '+pct(urg,total)+'%</div></div><div class="kc kw"><div class="klb">주의 (업그레이드 권고)</div><div class="kv">'+cau+'</div><div class="ksb">전체 '+pct(cau,total)+'%</div></div><div class="kc ko"><div class="klb">양호 (최신/유지)</div><div class="kv">'+ok+'</div><div class="ksb">전체 '+pct(ok,total)+'%</div></div><div class="kc ki"><div class="klb">서버 자산</div><div class="kv">'+SRV.length+'</div><div class="ksb">물리 '+SRV.filter(function(s){return s.cat==='물리';}).length+' · 논리 '+SRV.filter(function(s){return s.cat==='논리';}).length+' · 박스 '+SRV.filter(function(s){return s.cat==='박스';}).length+'</div></div><div class="kc kn"><div class="klb">네트워크 장비</div><div class="kv">'+NET.length+'</div><div class="ksb">Cisco 전 기종</div></div><div class="kc kt"><div class="klb">전체 자산</div><div class="kv">'+total+'</div><div class="ksb">26년 표준화 대상</div></div>';var su=SRV.filter(function(s){return s.s==='긴급';}).length,sc2=SRV.filter(function(s){return s.s==='주의';}).length,so=SRV.filter(function(s){return s.s==='양호';}).length,nu=NET.filter(function(n){return n.s==='긴급';}).length,nc2=NET.filter(function(n){return n.s==='주의';}).length,no=NET.filter(function(n){return n.s==='양호';}).length;document.getElementById('pgrid').innerHTML='<div class="pi"><div class="pinfo"><span class="pn">서버 전체</span><span class="pp" style="color:var(--red)">긴급 '+pct(su,SRV.length)+'%</span></div><div class="pbg"><div class="pb" style="width:0%;background:linear-gradient(90deg,var(--m1),var(--m2))" data-w="'+pct(sc2+so,SRV.length)+'%"></div></div><div class="pcts"><span class="cr">긴급 '+su+'</span><span class="cy2">주의 '+sc2+'</span><span class="cg">양호 '+so+'</span></div></div><div class="pi"><div class="pinfo"><span class="pn">네트워크</span><span class="pp" style="color:var(--red)">긴급 '+pct(nu,NET.length)+'%</span></div><div class="pbg"><div class="pb" style="width:0%;background:linear-gradient(90deg,var(--m1),var(--m2))" data-w="'+pct(nc2+no,NET.length)+'%"></div></div><div class="pcts"><span class="cr">긴급 '+nu+'</span><span class="cy2">주의 '+nc2+'</span><span class="cg">양호 '+no+'</span></div></div>';var alertEl=document.getElementById('dash-alert');if(urg>0){alertEl.style.display='flex';document.getElementById('dash-alert-text').innerHTML='<strong>EOL 초과 자산 '+urg+'대 감지</strong> — 즉시 조치 필요. <strong style="color:var(--red)">긴급 조치 목록을 확인하세요.</strong>';}else{alertEl.style.display='none';}var topItems=SRV.filter(function(s){return s.s==='긴급';}).concat(NET.filter(function(n){return n.s==='긴급';})).slice(0,7);var ranks=['①','②','③','④','⑤','⑥','⑦'];document.getElementById('top-tbody').innerHTML=topItems.map(function(d,i){var isSrv=d.os!==undefined,cur=isSrv?d.os:d.fw,rec=isSrv?d.os_r:d.fw_r,prob=isSrv?(d.os.includes('2012')?'OS EOL':d.os.includes('ESXi 7')?'OS EOL':d.db!=='-'?'DB EOL':d.was!=='-'?'WAS EOL':'버전 이슈'):'FW EOL/EOS';return'<tr onclick="opd('+JSON.stringify(d).replace(/"/g,'&quot;')+')"><td><span class="pri p1">'+ranks[i]+' P1</span></td><td><span class="hn">'+d.hn+'</span></td><td class="ip">'+d.id+'</td><td><span class="vc">'+cur+'</span><span class="veol">EOL</span></td><td style="font-size:10px;color:var(--red)">'+prob+'</td><td><span class="vr">'+rec+'</span></td><td>'+sb(d.s)+'</td></tr>';}).join('');setTimeout(function(){document.querySelectorAll('[data-w]').forEach(function(b){var w=b.getAttribute('data-w');b.style.width='0%';requestAnimationFrame(function(){setTimeout(function(){b.style.width=w;},50);});});},100);}
 function rSrv(){document.getElementById('srv-info').textContent='총 '+SRV.length+'대 | OS/DB/WAS 버전 현황 (행 클릭 시 상세)';document.getElementById('sc').textContent=SRV.length+' records';document.getElementById('sb').innerHTML=SRV.map(function(s){return'<tr onclick="opd('+JSON.stringify(s).replace(/"/g,'&quot;')+')">'+'<td class="hn">'+s.id+'</td>'+'<td><span class="hn">'+s.hn+'</span><br><span class="ip">'+s.ip+'</span></td>'+'<td class="ip">'+s.ip+'</td>'+'<td><span class="tag" style="font-size:9px">'+(s.type||'').replace('_논리_박스','').replace('_물리서버','')+'</span></td>'+'<td><span style="font-size:10px;color:var(--t2)">'+s.mfr+'</span> <span class="tag">'+s.model+'</span></td>'+'<td class="vc">'+s.os+'</td>'+'<td>'+(s.os===s.os_r?'<span class="vok">'+s.os_r+'</span>':'<span class="vr">'+s.os_r+'</span>')+'</td>'+'<td style="font-size:10px">'+(s.db!=='-'?'<span style="color:'+(s.db.includes('11.')||s.db.includes('2014')?'var(--red)':'var(--t1)')+'">'+s.db+'</span>':'')+'</td>'+'<td style="font-size:10px">'+(s.was!=='-'?'<span style="color:'+(s.was.includes('8.0')||s.was.includes('9.0')||s.was.includes('8.5')?'var(--red)':'var(--cy)')+'">'+s.was+'</span>':'')+'</td>'+'<td>'+sb(s.s)+'</td>'+'<td><span class="pri p'+s.p+'">P'+s.p+'</span></td></tr>';}).join('');}
-function rNet(){document.getElementById('net-info').textContent='총 '+NET.length+'대 | Cisco 전 기종 (행 클릭 시 상세)';document.getElementById('nc').textContent=NET.length+' records';document.getElementById('nb').innerHTML=NET.map(function(n){return'<tr onclick="opd('+JSON.stringify(n).replace(/"/g,'&quot;')+')">'+'<td class="hn">'+n.id+'</td><td class="hn">'+n.hn+'</td><td class="ip">'+n.ip+'</td>'+'<td><span class="tag">'+n.model+'</span></td><td><span class="tag" style="color:var(--cy)">'+n.pf+'</span></td>'+'<td class="vc">'+n.fw+'</td>'+'<td>'+(n.fw===n.fw_r?'<span class="vok">'+n.fw_r+'</span>':'<span class="vr">'+n.fw_r+'</span>')+'</td>'+'<td style="font-size:10px;color:'+((n.eol||'').includes('EOS')||(n.eol||'').includes('HW')?'var(--red)':'var(--t3)')+'">'+n.eol+'</td>'+'<td>'+cveHtml(n.cve)+'</td><td>'+sb(n.s)+'</td></tr>';}).join('');}
+function rNet(){document.getElementById('net-info').textContent='총 '+NET.length+'대 | Cisco 전 기종 (행 클릭 시 상세)';document.getElementById('nc').textContent=NET.length+' records';document.getElementById('nb').innerHTML=NET.map(function(n){return'<tr onclick="opd('+JSON.stringify(n).replace(/"/g,'&quot;')+')">'+'<td class="hn">'+n.id+'</td><td class="hn">'+n.hn+'</td><td class="ip">'+n.ip+'</td>'+'<td><span class="tag">'+n.model+'</span></td><td><span class="tag" style="color:var(--cy);border-color:rgba(14,153,204,.25)">'+n.pf+'</span></td>'+'<td class="vc">'+n.fw+'</td>'+'<td>'+(n.fw===n.fw_r?'<span class="vok">'+n.fw_r+'</span>':'<span class="vr">'+n.fw_r+'</span>')+'</td>'+'<td style="font-size:10px;color:'+((n.eol||'').includes('EOS')||(n.eol||'').includes('HW')?'var(--red)':'var(--t3)')+'">'+n.eol+'</td>'+'<td>'+cveHtml(n.cve)+'</td><td>'+sb(n.s)+'</td></tr>';}).join('');}
 function rUrg(){var us=SRV.filter(function(s){return s.s==='긴급';}),un=NET.filter(function(n){return n.s==='긴급';});document.getElementById('urg-info').textContent='EOL/EOS 초과 전체 '+(us.length+un.length)+'건';document.getElementById('uc').innerHTML='<div class="tw" style="margin-bottom:14px"><div class="thdr"><div class="thdr-t">🖥 긴급 서버 ('+us.length+'대)</div></div><div class="tscroll"><table><thead><tr><th>ID</th><th>Hostname</th><th>모델</th><th>OS</th><th>DB/WAS</th><th>서비스그룹</th><th>권고 조치</th></tr></thead><tbody>'+us.map(function(s){return'<tr onclick="opd('+JSON.stringify(s).replace(/"/g,'&quot;')+')">'+'<td class="hn">'+s.id+'</td><td><span class="hn">'+s.hn+'</span><br><span class="ip">'+s.ip+'</span></td>'+'<td><span class="tag">'+s.model+'</span></td><td><span class="vc" style="color:var(--red)">'+s.os+'</span><span class="veol">EOL</span></td>'+'<td style="font-size:10px">'+(s.db!=='-'?'<span style="color:var(--red)">'+s.db+'</span>':'')+' '+(s.was!=='-'?'<span style="color:var(--red)">'+s.was+'</span>':'')+'</td>'+'<td style="font-size:10px;color:var(--t2)">'+(s.svc||'-')+' / '+(s.svc_sub||'-')+'</td>'+'<td style="font-size:10px"><span class="vr">'+s.os_r+(s.db_r!=='-'?' + '+s.db_r:'')+'</span></td></tr>';}).join('')+'</tbody></table></div></div>'+'<div class="tw"><div class="thdr"><div class="thdr-t">🌐 긴급 네트워크 ('+un.length+'대)</div></div><div class="tscroll"><table><thead><tr><th>ID</th><th>Hostname</th><th>모델</th><th>현재 펌웨어</th><th>EOL/EOS</th><th>CVE</th><th>권고 조치</th></tr></thead><tbody>'+un.map(function(n){return'<tr onclick="opd('+JSON.stringify(n).replace(/"/g,'&quot;')+')">'+'<td class="hn">'+n.id+'</td><td><span class="hn">'+n.hn+'</span><br><span class="ip">'+n.ip+'</span></td>'+'<td><span class="tag">'+n.model+'</span></td><td><span class="vc" style="color:var(--red)">'+n.fw+'</span></td>'+'<td style="color:var(--red);font-size:10px">'+n.eol+'</td><td>'+cveHtml(n.cve)+'</td><td><span class="vr">'+n.fw_r+'</span></td></tr>';}).join('')+'</tbody></table></div></div>';}
-function rOS(){var m={};SRV.forEach(function(s){var k=s.os||'알수없음';if(!m[k])m[k]={os:k,rec:s.os_r,cnt:0,urg:0};m[k].cnt++;if(s.s==='긴급')m[k].urg++;});if(!Object.keys(m).length){document.getElementById('oc').innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)">데이터 없음</div>';return;}document.getElementById('oc').innerHTML='<div class="tw"><div class="thdr"><div class="thdr-t">💿 OS 버전 분포</div></div><div class="tscroll"><table><thead><tr><th>OS 버전</th><th>서버 수</th><th>긴급</th><th>권고 버전</th><th>상태</th></tr></thead><tbody>'+Object.values(m).sort(function(a,b){return b.urg-a.urg;}).map(function(o){return'<tr><td class="vc">'+o.os+'</td><td style="font-family:var(--fm)">'+o.cnt+'대</td><td>'+(o.urg?'<span style="color:var(--red);font-family:var(--fm);font-weight:700">'+o.urg+'대</span>':'<span style="color:var(--m2)">0</span>')+'</td><td><span class="vr">'+(o.rec||'-')+'</span></td><td>'+sb(o.urg?'긴급':'주의')+'</td></tr>';}).join('')+'</tbody></table></div></div>';}
-function rMW(){var m={};SRV.forEach(function(s){[[s.db,s.db_r],[s.was,s.was_r]].forEach(function(pair){var cur=pair[0],rec=pair[1];if(!cur||cur==='-')return;if(!m[cur])m[cur]={sw:cur,rec:rec||'-',cnt:0,urg:0};m[cur].cnt++;if(s.s==='긴급')m[cur].urg++;});});var items=Object.values(m).sort(function(a,b){return b.urg-a.urg;});if(!items.length){document.getElementById('mc').innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)">데이터 없음</div>';return;}document.getElementById('mc').innerHTML='<div class="tw"><div class="thdr"><div class="thdr-t">⚙️ MW/DB 버전 분포</div></div><div class="tscroll"><table><thead><tr><th>소프트웨어</th><th>서버 수</th><th>긴급</th><th>권고 버전</th><th>상태</th></tr></thead><tbody>'+items.map(function(i){return'<tr><td style="font-weight:500">'+i.sw+'</td><td style="font-family:var(--fm)">'+i.cnt+'대</td><td>'+(i.urg?'<span style="color:var(--red);font-weight:700;font-family:var(--fm)">'+i.urg+'대</span>':'<span style="color:var(--m2)">0</span>')+'</td><td><span class="vr">'+i.rec+'</span></td><td>'+sb(i.urg?'긴급':'주의')+'</td></tr>';}).join('')+'</tbody></table></div></div>';}
-function rGRP(){var grps=[{code:"GRP-APP-01",stack:"x86 WEB/WAS 표준",combo:"RHEL 8.10 + Apache 2.4.63 + Tomcat 10.1.40 + Java 17 LTS",note:"x86 표준 WEB/WAS 스택",c:"#00854A"},{code:"GRP-APP-02",stack:"x86 Nginx 기반",combo:"RHEL 8.10 + Nginx 1.28.0 + Tomcat 10.1.40 + Java 17 LTS",note:"Nginx 기반 WAS 스택",c:"#8DC63F"},{code:"GRP-APP-03",stack:"IBM Power 목표",combo:"AIX 7.2 TL05 SP11 + IHS 9.0.5.x + Liberty 25.x + Semeru Java 17",note:"IBM Power 마이그레이션 목표",c:"#009559"},{code:"GRP-DB-01",stack:"기간계 DB 표준",combo:"AIX 7.2 TL05 SP11 + Oracle 19.27 (LTS)",note:"기간계 DB 표준 조합",c:"#F47920"},{code:"GRP-DB-02",stack:"지원계 DB 표준",combo:"Windows Server 2022 + SQL Server 2022 CU14+",note:"지원계 DB 표준",c:"#C9252C"},{code:"GRP-NET-01",stack:"Catalyst IOS-XE",combo:"Cisco IOS-XE 17.12.5 (LTS 통일)",note:"캠퍼스/브랜치 펌웨어 표준",c:"#14B1E7"},{code:"GRP-NET-02",stack:"Nexus NX-OS",combo:"NX-OS 9.3(13) 또는 10.4.3",note:"데이터센터 ToR/Core 표준",c:"#0061AF"}];document.getElementById('gc').innerHTML='<div class="gcards">'+grps.map(function(g){return'<div class="gc" style="border-left:3px solid '+g.c+'"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px"><span style="font-family:var(--fm);font-size:11px;font-weight:700;color:'+g.c+'">'+g.code+'</span><span style="font-size:10px;color:var(--t3)">'+g.stack+'</span></div><div style="font-family:var(--fm);font-size:10px;color:var(--cy);background:var(--cyg);padding:7px 9px;border-radius:5px;margin-bottom:7px;line-height:1.7">'+g.combo+'</div><div style="font-size:10px;color:var(--t3)">'+g.note+'</div></div>';}).join('')+'</div>';}
+function rOS(){var m={};SRV.forEach(function(s){var k=s.os||'알수없음';if(!m[k])m[k]={os:k,rec:s.os_r,cnt:0,urg:0};m[k].cnt++;if(s.s==='긴급')m[k].urg++;});if(!Object.keys(m).length){document.getElementById('oc').innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)">데이터 없음</div>';return;}document.getElementById('oc').innerHTML='<div class="tw"><div class="thdr"><div class="thdr-t">💿 OS 버전 분포</div></div><div class="tscroll"><table><thead><tr><th>OS 버전</th><th>서버 수</th><th>긴급</th><th>권고 버전</th><th>상태</th></tr></thead><tbody>'+Object.values(m).sort(function(a,b){return b.urg-a.urg;}).map(function(o){return'<tr><td class="vc">'+o.os+'</td><td style="font-family:var(--fm)">'+o.cnt+'대</td><td>'+(o.urg?'<span style="color:var(--red);font-family:var(--fm);font-weight:700">'+o.urg+'대</span>':'<span style="color:var(--m1)">0</span>')+'</td><td><span class="vr">'+(o.rec||'-')+'</span></td><td>'+sb(o.urg?'긴급':'주의')+'</td></tr>';}).join('')+'</tbody></table></div></div>';}
+function rMW(){var m={};SRV.forEach(function(s){[[s.db,s.db_r],[s.was,s.was_r]].forEach(function(pair){var cur=pair[0],rec=pair[1];if(!cur||cur==='-')return;if(!m[cur])m[cur]={sw:cur,rec:rec||'-',cnt:0,urg:0};m[cur].cnt++;if(s.s==='긴급')m[cur].urg++;});});var items=Object.values(m).sort(function(a,b){return b.urg-a.urg;});if(!items.length){document.getElementById('mc').innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)">데이터 없음</div>';return;}document.getElementById('mc').innerHTML='<div class="tw"><div class="thdr"><div class="thdr-t">⚙️ MW/DB 버전 분포</div></div><div class="tscroll"><table><thead><tr><th>소프트웨어</th><th>서버 수</th><th>긴급</th><th>권고 버전</th><th>상태</th></tr></thead><tbody>'+items.map(function(i){return'<tr><td style="font-weight:500">'+i.sw+'</td><td style="font-family:var(--fm)">'+i.cnt+'대</td><td>'+(i.urg?'<span style="color:var(--red);font-weight:700;font-family:var(--fm)">'+i.urg+'대</span>':'<span style="color:var(--m1)">0</span>')+'</td><td><span class="vr">'+i.rec+'</span></td><td>'+sb(i.urg?'긴급':'주의')+'</td></tr>';}).join('')+'</tbody></table></div></div>';}
+function rGRP(){var grps=[{code:"GRP-APP-01",stack:"x86 WEB/WAS 표준",combo:"RHEL 8.10 + Apache 2.4.63 + Tomcat 10.1.40 + Java 17 LTS",note:"x86 표준 WEB/WAS 스택",c:"#00854A"},{code:"GRP-APP-02",stack:"x86 Nginx 기반",combo:"RHEL 8.10 + Nginx 1.28.0 + Tomcat 10.1.40 + Java 17 LTS",note:"Nginx 기반 WAS 스택",c:"#8DC63F"},{code:"GRP-APP-03",stack:"IBM Power 목표",combo:"AIX 7.2 TL05 SP11 + IHS 9.0.5.x + Liberty 25.x + Semeru Java 17",note:"IBM Power 마이그레이션 목표",c:"#009559"},{code:"GRP-DB-01",stack:"기간계 DB 표준",combo:"AIX 7.2 TL05 SP11 + Oracle 19.27 (LTS)",note:"기간계 DB 표준 조합",c:"#F47920"},{code:"GRP-DB-02",stack:"지원계 DB 표준",combo:"Windows Server 2022 + SQL Server 2022 CU14+",note:"지원계 DB 표준",c:"#C9252C"},{code:"GRP-NET-01",stack:"Catalyst IOS-XE",combo:"Cisco IOS-XE 17.12.5 (LTS 통일)",note:"캠퍼스/브랜치 펌웨어 표준",c:"#0e99cc"},{code:"GRP-NET-02",stack:"Nexus NX-OS",combo:"NX-OS 9.3(13) 또는 10.4.3",note:"데이터센터 ToR/Core 표준",c:"#0061AF"}];document.getElementById('gc').innerHTML='<div class="gcards">'+grps.map(function(g){return'<div class="gc" style="border-top:3px solid '+g.c+'"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-family:var(--fm);font-size:11px;font-weight:700;color:'+g.c+'">'+g.code+'</span><span style="font-size:10px;color:var(--t3)">'+g.stack+'</span></div><div style="font-family:var(--fm);font-size:10px;color:var(--t2);background:var(--bg3);border:1px solid var(--bd);padding:8px 10px;border-radius:5px;margin-bottom:8px;line-height:1.8">'+g.combo+'</div><div style="font-size:10px;color:var(--t3)">'+g.note+'</div></div>';}).join('')+'</div>';}
 function ft(tid,q,s1id,s2id){var v1=document.getElementById(s1id)?document.getElementById(s1id).value:'',v2=document.getElementById(s2id)?document.getElementById(s2id).value:'';var rows=document.querySelectorAll('#'+tid+' tbody tr'),cnt=0;rows.forEach(function(tr){var t=tr.textContent.toLowerCase(),ok=(!q||t.includes(q.toLowerCase()))&&(!v1||t.includes(v1))&&(!v2||t.includes(v2));tr.style.display=ok?'':'none';if(ok)cnt++;});var el=document.getElementById(tid==='st'?'sc':'nc');if(el)el.textContent=cnt+' records';}
-function opd(d){var isSrv=d.os!==undefined;document.getElementById('dpt').textContent=d.id+' — '+d.hn;function row(k,v,cls){cls=cls||'';return'<div class="dpr"><span class="drk">'+k+'</span><span class="drv '+cls+'">'+(v||'-')+'</span></div>';}var h='';if(isSrv){h+='<div class="dps"><div class="dpst">기본 정보</div>'+row('서버 ID',d.id,'cy')+row('Hostname',d.hn,'cy')+row('IP 주소',d.ip,'cy')+row('자산유형',d.type)+row('세부분류',d.cat)+row('제조사',d.mfr)+row('Boxname',d.box)+row('모델명',d.model)+'</div>';var osEol=d.os&&(d.os.includes('2012')||d.os.includes('ESXi 7'));h+='<div class="dps"><div class="dpst">OS</div>'+row('현재 OS',d.os+(osEol?' ⚠ EOL':''),osEol?'ur':'')+row('권고 OS',d.os_r,'ok')+'</div>';if(d.db&&d.db!=='-'){var dbEol=d.db.includes('11.')||d.db.includes('2014');h+='<div class="dps"><div class="dpst">DB</div>'+row('현재 DB',d.db+(dbEol?' ⚠ EOL':''),dbEol?'ur':'')+row('권고 DB',d.db_r,'ok')+'</div>';}if(d.was&&d.was!=='-'){var wasEol=d.was.includes('8.0')||d.was.includes('9.0')||d.was.includes('8.5');h+='<div class="dps"><div class="dpst">WAS / WEB</div>'+row('현재 WAS',d.was+(wasEol?' ⚠ EOL':''),wasEol?'ur':'')+row('권고 WAS',d.was_r,'ok')+'</div>';}if(d.jdk&&d.jdk!=='-')h+='<div class="dps"><div class="dpst">JDK</div>'+row('현재 JDK',d.jdk,'wa')+row('권고 JDK','Java 17 LTS 또는 1.8.0_421+','ok')+'</div>';h+='<div class="dps"><div class="dpst">서비스 정보</div>'+row('서비스그룹',d.svc)+row('소분류',d.svc_sub)+row('서버 용도',d.svc_desc)+row('연동 DB',d.linked)+'</div>';h+='<div class="dps"><div class="dpst">담당자 정보</div>'+row('HW 담당유닛',d.hw_unit)+row('HW 담당자',d.hw_mgr)+row('OS 담당유닛',d.os_unit)+row('OS 담당자',d.os_mgr)+row('MW/DB 담당유닛',d.mw_unit)+row('MW/DB 담당자',d.mw_mgr)+'</div>';}else{h+='<div class="dps"><div class="dpst">장비 정보</div>'+row('장비 ID',d.id,'cy')+row('Hostname',d.hn,'cy')+row('IP 주소',d.ip,'cy')+row('모델명',d.model)+row('플랫폼',d.pf)+'</div>';var fwEol=(d.eol||'').includes('EOS')||(d.eol||'').includes('HW');h+='<div class="dps"><div class="dpst">펌웨어</div>'+row('현재 펌웨어',d.fw,d.s==='긴급'?'ur':'wa')+row('권고 펌웨어',d.fw_r,'ok')+row('EOL/EOS',d.eol,fwEol?'ur':'')+row('CVE 위험도',d.cve,d.cve==='최고'||d.cve==='고'?'ur':'wa')+'</div>';h+='<div class="dps"><div class="dpst">서비스/담당</div>'+row('서비스그룹',d.svc)+row('위치',d.loc)+row('HW 담당자',d.hw_mgr)+'</div>';}h+='<div class="dps"><div class="dpst">종합 판정</div><div style="padding:14px;border-radius:6px;text-align:center;background:'+(d.s==='긴급'?'rgba(201,37,44,.12)':d.s==='주의'?'rgba(244,121,32,.12)':'rgba(0,133,74,.12)')+';border:1px solid '+(d.s==='긴급'?'rgba(201,37,44,.3)':d.s==='주의'?'rgba(244,121,32,.3)':'rgba(0,133,74,.3)')+'" ><div style="font-size:24px;font-weight:700;font-family:var(--fm);color:'+(d.s==='긴급'?'var(--red)':d.s==='주의'?'var(--org)':'var(--m2)')+'"> '+(d.s||'확인필요')+'</div><div style="font-size:10px;color:var(--t3);margin-top:4px">EOL 룰엔진 자동 판정</div></div></div>';document.getElementById('dpb').innerHTML=h;document.getElementById('dpanel').classList.add('open');}
+function opd(d){var isSrv=d.os!==undefined;document.getElementById('dpt').textContent=d.id+' — '+d.hn;function row(k,v,cls){cls=cls||'';return'<div class="dpr"><span class="drk">'+k+'</span><span class="drv '+cls+'">'+(v||'-')+'</span></div>';}var h='';if(isSrv){h+='<div class="dps"><div class="dpst">기본 정보</div>'+row('서버 ID',d.id,'cy')+row('Hostname',d.hn)+row('IP 주소',d.ip)+row('자산유형',d.type)+row('세부분류',d.cat)+row('제조사',d.mfr)+row('Boxname',d.box)+row('모델명',d.model)+'</div>';var osEol=d.os&&(d.os.includes('2012')||d.os.includes('ESXi 7'));h+='<div class="dps"><div class="dpst">OS</div>'+row('현재 OS',d.os+(osEol?' ⚠ EOL':''),osEol?'ur':'')+row('권고 OS',d.os_r,'ok')+'</div>';if(d.db&&d.db!=='-'){var dbEol=d.db.includes('11.')||d.db.includes('2014');h+='<div class="dps"><div class="dpst">DB</div>'+row('현재 DB',d.db+(dbEol?' ⚠ EOL':''),dbEol?'ur':'')+row('권고 DB',d.db_r,'ok')+'</div>';}if(d.was&&d.was!=='-'){var wasEol=d.was.includes('8.0')||d.was.includes('9.0')||d.was.includes('8.5');h+='<div class="dps"><div class="dpst">WAS / WEB</div>'+row('현재 WAS',d.was+(wasEol?' ⚠ EOL':''),wasEol?'ur':'')+row('권고 WAS',d.was_r,'ok')+'</div>';}if(d.jdk&&d.jdk!=='-')h+='<div class="dps"><div class="dpst">JDK</div>'+row('현재 JDK',d.jdk,'wa')+row('권고 JDK','Java 17 LTS 또는 1.8.0_421+','ok')+'</div>';h+='<div class="dps"><div class="dpst">서비스 정보</div>'+row('서비스그룹',d.svc)+row('소분류',d.svc_sub)+row('서버 용도',d.svc_desc)+row('연동 DB',d.linked)+'</div>';h+='<div class="dps"><div class="dpst">담당자 정보</div>'+row('HW 담당유닛',d.hw_unit)+row('HW 담당자',d.hw_mgr)+row('OS 담당유닛',d.os_unit)+row('OS 담당자',d.os_mgr)+row('MW/DB 담당유닛',d.mw_unit)+row('MW/DB 담당자',d.mw_mgr)+'</div>';}else{h+='<div class="dps"><div class="dpst">장비 정보</div>'+row('장비 ID',d.id,'cy')+row('Hostname',d.hn)+row('IP 주소',d.ip)+row('모델명',d.model)+row('플랫폼',d.pf)+'</div>';var fwEol=(d.eol||'').includes('EOS')||(d.eol||'').includes('HW');h+='<div class="dps"><div class="dpst">펌웨어</div>'+row('현재 펌웨어',d.fw,d.s==='긴급'?'ur':'wa')+row('권고 펌웨어',d.fw_r,'ok')+row('EOL/EOS',d.eol,fwEol?'ur':'')+row('CVE 위험도',d.cve,d.cve==='최고'||d.cve==='고'?'ur':'wa')+'</div>';h+='<div class="dps"><div class="dpst">서비스/담당</div>'+row('서비스그룹',d.svc)+row('위치',d.loc)+row('HW 담당자',d.hw_mgr)+'</div>';}h+='<div class="dps"><div class="dpst">종합 판정</div><div style="padding:16px;border-radius:8px;text-align:center;background:'+(d.s==='긴급'?'rgba(201,37,44,.07)':d.s==='주의'?'rgba(244,121,32,.07)':'rgba(0,133,74,.07)')+';border:1px solid '+(d.s==='긴급'?'rgba(201,37,44,.2)':d.s==='주의'?'rgba(244,121,32,.2)':'rgba(0,133,74,.2)')+'" ><div style="font-size:26px;font-weight:700;font-family:var(--fm);color:'+(d.s==='긴급'?'var(--red)':d.s==='주의'?'var(--org)':'var(--m1)')+'"> '+(d.s||'확인필요')+'</div><div style="font-size:10px;color:var(--t3);margin-top:5px">EOL 룰엔진 자동 판정</div></div></div>';document.getElementById('dpb').innerHTML=h;document.getElementById('dpanel').classList.add('open');}
 function cpanel(){document.getElementById('dpanel').classList.remove('open');}
 function exportExcel(){if(!window.XLSX){toast('SheetJS 로딩 중','er');return;}if(!SRV.length&&!NET.length){toast('먼저 마스터파일을 Import 하세요','er');return;}var wb=XLSX.utils.book_new();var sh1=[['서버ID','Hostname','IP','자산유형','세부분류','제조사','모델','현재OS','권고OS','DB현재','DB권고','WAS현재','WAS권고','JDK','상태','우선순위','서비스그룹','소분류','서버용도','연동DB','HW담당','OS담당','MW담당']];SRV.forEach(function(s){sh1.push([s.id,s.hn,s.ip,s.type,s.cat,s.mfr,s.model,s.os,s.os_r,s.db,s.db_r,s.was,s.was_r,s.jdk,s.s,s.p,s.svc,s.svc_sub,s.svc_desc,s.linked,s.hw_mgr,s.os_mgr,s.mw_mgr]);});XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sh1),'서버현황');var sh2=[['장비ID','Hostname','IP','모델','플랫폼','현재펌웨어','권고펌웨어','EOL_EOS','CVE위험도','상태','서비스그룹','위치','HW담당']];NET.forEach(function(n){sh2.push([n.id,n.hn,n.ip,n.model,n.pf,n.fw,n.fw_r,n.eol,n.cve,n.s,n.svc,n.loc,n.hw_mgr]);});XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sh2),'네트워크현황');XLSX.writeFile(wb,'IT인프라_표준화_현황_'+new Date().toISOString().split('T')[0]+'.xlsx');toast('Excel Export 완료','ok');}
 function showResult(logs){var el=document.getElementById('import-result');el.classList.add('show');el.innerHTML=logs.map(function(l){return'<div class="ir-row"><span class="'+(l.ok?'ir-ok':'ir-er')+'">'+l.msg+'</span></div>';}).join('');}
 var toastTimer;
 function toast(msg,type){type=type||'ok';var el=document.getElementById('toast');el.textContent=msg;el.className='toast '+(type==='ok'?'ok':'er');el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.classList.remove('show');},3500);}
-/* ── 초기화: localStorage 복원 후 바로 대시보드 이동 ── */
 (function init(){
   var res=loadFromStorage();
   if(res.ok){
