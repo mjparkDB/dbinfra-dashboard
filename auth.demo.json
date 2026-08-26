@@ -1,0 +1,46 @@
+{
+  "enabled": true,
+  "demo": true,
+  "iterations": 200000,
+  "note": "GitHub Pages 데모용 계정입니다. 실 운영에는 make_users.py 로 auth.json 을 만드십시오.",
+  "hints": [
+    [
+      "viewer",
+      "viewer",
+      "조회자 — 조회만"
+    ],
+    [
+      "editor",
+      "editor",
+      "편집자 — 조회 + 편집·내보내기"
+    ],
+    [
+      "admin",
+      "admin",
+      "관리자 — 전체 + 데이터 관리"
+    ]
+  ],
+  "users": [
+    {
+      "id": "viewer",
+      "name": "조회자",
+      "role": "viewer",
+      "salt": "47b6a9add973d69a17f313448a7d7673",
+      "hash": "c1bcd2593c1eb88541a12218fc8383af81469e29f86b5881fbbb4bb27f563a57"
+    },
+    {
+      "id": "editor",
+      "name": "편집담당",
+      "role": "editor",
+      "salt": "a4a3e19a9e220718ba86bfb3d32001d6",
+      "hash": "f7aaaed9bb363beb12e87c2589720ed9d0a2d6a0e8117f782f63ed54065295d3"
+    },
+    {
+      "id": "admin",
+      "name": "관리자",
+      "role": "admin",
+      "salt": "dc9610d8e489a3728af66c8369401489",
+      "hash": "626af5e75698668ee1a169a4f915861a1a031d090fdbc9c7a78107b94611ac11"
+    }
+  ]
+}

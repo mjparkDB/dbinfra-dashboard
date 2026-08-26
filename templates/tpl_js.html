@@ -1,0 +1,630 @@
+<script>
+/* ══════════════════════════════════════════════
+   인프라 표준화 포털 — 로직
+   자산 컬럼 인덱스
+   0 id 1 layer 2 env 3 sys 4 os 5 fam 6 osShort 7 prod 8 canon
+   9 jdk 10 cur 11 rec 12 eosdate 13 eos 14 upd 15 reason 16 dual
+   17 판정 18 우선순위 19 표준하한 20 표준지정 21 하한대조
+   ══════════════════════════════════════════════ */
+let A, STD, CMP, JDK, EOL, SW, DQ, SWN, CC, INV;
+function rebindData(){
+  A = DATA.assets; STD = DATA.std; CMP = DATA.compat;
+  JDK = DATA.jdk; EOL = DATA.eol; SW = DATA.sw; DQ = DATA.dq;
+  SWN = DATA.swNames; CC = DATA.compatCols; INV = DATA.inversions;
+}
+rebindData();
+
+const $ = s => document.querySelector(s);
+const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uniq = a => [...new Set(a)].filter(Boolean);
+const cnt = (arr,f) => { const m={}; arr.forEach(x=>{const k=f(x); if(k!=null&&k!=='') m[k]=(m[k]||0)+1;}); return m; };
+const pct = (a,b) => b>0 ? Math.round(a/b*100) : 0;
+
+const VB = {'전환대상':'bd-r','전환권장':'bd-a','표준준수':'bd-g','검토':'bd-n'};
+const SYC = {'◎':'sy-c','○':'sy-o','△':'sy-t','✗':'sy-x','–':'sy-n','-':'sy-n','?':'sy-q'};
+const SYN = {'◎':'인증(표준 조합)','○':'지원','△':'조건부·EOL 임박','✗':'미지원·EOL','–':'해당없음','?':'확인 필요(SPV 대상)'};
+
+/* ── 표 정렬 ── */
+function sortable(tableEl, getRows, redraw, colTypes){
+  const ths = tableEl.querySelectorAll('thead th');
+  ths.forEach((th,i)=>{
+    if(colTypes[i]===null) return;
+    th.classList.add('so');
+    th.tabIndex = 0;
+    const run = ()=>{
+      const cur = th.classList.contains('up') ? 'dn' : 'up';
+      ths.forEach(x=>x.classList.remove('up','dn'));
+      th.classList.add(cur);
+      const dir = cur==='up' ? 1 : -1;
+      const kind = colTypes[i];
+      getRows().sort((a,b)=>{
+        let x = kind.get(a), y = kind.get(b);
+        if(kind.num){ x=+x||0; y=+y||0; return (x-y)*dir; }
+        return String(x||'').localeCompare(String(y||''),'ko') * dir;
+      });
+      redraw();
+      tableEl.querySelectorAll('thead th')[i].classList.add(cur);
+    };
+    th.onclick = run;
+    th.onkeydown = e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); run(); } };
+  });
+}
+const NUM = g => ({get:g, num:true});
+const TXT = g => ({get:g, num:false});
+
+/* ── 탭 이동 + 필터 적용 (드릴다운) ── */
+function goTo(tab, filter){
+  pendingFilter = filter || null;
+  show(tab, true);
+}
+let pendingFilter = null;
+
+const src = t => `<div class="src">출처 · ${esc(t)}</div>`;
+const bdg = v => `<span class="bd ${VB[v]||'bd-n'}">${esc(v)}</span>`;
+const sym = s => `<span class="sy ${SYC[s]||'sy-q'}">${esc(s)}</span>`;
+
+function bars(obj, color, order, ddKey){
+  let keys = Object.keys(obj);
+  if(order) keys = order.filter(k=>obj[k]!=null).concat(keys.filter(k=>!order.includes(k)));
+  else keys.sort((a,b)=>obj[b]-obj[a]);
+  const max = Math.max(...keys.map(k=>obj[k]), 1);
+  const tot = keys.reduce((s,k)=>s+obj[k], 0);
+  return keys.map(k=>{
+    const c = k==='전환대상'?'var(--r)': k==='전환권장'?'var(--a)':
+              k==='표준준수'?'var(--g)': color||'var(--b)';
+    const dd = ddKey ? ` dd" tabindex="0" role="button"
+      data-goto='${esc(JSON.stringify({[ddKey]:k}))}"` : '"';
+    const cls = ddKey ? 'bar dd' : 'bar';
+    const attr = ddKey ? ` tabindex="0" role="button" data-goto='${JSON.stringify({[ddKey]:k})}'` : '';
+    return `<div class="${cls}"${attr}><div class="bar-t"><b>${esc(k)}</b>
+      <span>${obj[k]}건 · ${pct(obj[k],tot)}%</span></div>
+      <div class="bar-g"><div class="bar-f" style="width:${obj[k]/max*100}%;background:${c}"></div></div></div>`;
+  }).join('');
+}
+
+/* ── 자산 표 ── */
+const ACOL = [
+  NUM(r=>r[0].replace(/\D/g,'')), TXT(r=>r[1]), TXT(r=>r[2]), TXT(r=>r[3]),
+  TXT(r=>r[6]), TXT(r=>r[7]), TXT(r=>r[10]), TXT(r=>r[11]), TXT(r=>r[17]), NUM(r=>r[18]),
+];
+function atable(rows, opt){
+  opt = opt || {};
+  const lim = opt.lim || rows.length;
+  const show = rows.slice(0, lim);
+  let h = `<div class="tw${rows.length>14?' sc':''}"><table><thead><tr>
+    <th class="nw">자산ID</th><th>계층</th><th class="nw">운영</th><th>업무</th><th class="nw">OS</th>
+    <th>제품</th><th class="nw">현재</th><th>권고</th><th class="nw">판정</th><th class="nw">순위</th></tr></thead><tbody>`;
+  h += show.map((r,i)=>`<tr class="cl alt-${i%2}" data-id="${esc(r[0])}">
+    <td class="v- nw">${esc(r[0])}</td>
+    <td><span class="bd bd-n">${esc(r[1])}</span></td>
+    <td class="nw">${esc(r[2])}</td><td>${esc(r[3])}</td>
+    <td class="v- nw">${esc(r[6]||'—')}</td>
+    <td>${esc(r[7])}</td>
+    <td class="nw ${r[21]==='미달'?'v-x':'v-c'}">${esc(r[10]||'—')}</td>
+    <td class="v-s">${esc(r[11]||'—')}</td>
+    <td class="nw">${bdg(r[17])}</td>
+    <td class="nw"><span class="pr pr${r[18]}">P${r[18]}</span></td></tr>`).join('');
+  h += '</tbody></table></div>';
+  if(rows.length>lim) h += `<div class="note">상위 ${lim}건 표시 ·
+    <button class="lnk" data-goto='${esc(JSON.stringify(opt.goto||{}))}'>전체 ${rows.length}건 보기</button></div>`;
+  return h;
+}
+function bindRows(root){
+  const R = root || document;
+  R.querySelectorAll('tr.cl').forEach(tr=>{
+    tr.onclick = ()=>openAsset(tr.dataset.id);
+  });
+  R.querySelectorAll('[data-goto]').forEach(el=>{
+    el.onclick = ()=>{ try{ goTo('asset', JSON.parse(el.dataset.goto)); }catch(e){ goTo('asset'); } };
+  });
+}
+
+/* ── 자산 상세 ── */
+function openAsset(id){
+  const r = A.find(x=>x[0]===id); if(!r) return;
+  const jr = JDK.find(j=>j.canon===r[8]);
+  const el = EOL.filter(e=>e.canon===r[8]);
+  const st = STD.find(s=>s.fam===r[5] && s.canon===r[8]);
+  const cm = CMP.filter(c=>c.canon===r[8]);
+  let h = `<div class="sec-t">자산 정보</div><dl class="dl">
+    <dt>자산 ID</dt><dd class="v-">${esc(r[0])}</dd>
+    <dt>계층 · 운영</dt><dd>${esc(r[1])} · ${esc(r[2])}</dd>
+    <dt>업무/시스템</dt><dd>${esc(r[3])||'—'}</dd>
+    <dt>OS</dt><dd class="v-">${esc(r[4])||'미기재'}</dd>
+    <dt>이중화</dt><dd>${esc(r[16])||'—'}</dd>
+    <dt>서버명</dt><dd style="color:var(--mut)">(비식별)</dd></dl>`;
+
+  h += `<div class="sec-t">버전 판정</div><dl class="dl">
+    <dt>제품</dt><dd>${esc(r[7])}</dd>
+    <dt>현재 버전</dt><dd class="${r[21]==='미달'?'v-x':'v-c'}">${esc(r[10])||'—'}
+      ${r[21]?` <span class="bd ${r[21]==='미달'?'bd-r':'bd-g'}">하한 ${esc(r[21])}</span>`:''}</dd>
+    <dt>원장 권고</dt><dd class="v-s">${esc(r[11])||'—'}</dd>`;
+  if(st) h += `<dt>표준 지정</dt><dd class="v-s">${esc(st.std)}</dd>
+    <dt>표준 하한(≥)</dt><dd class="v-s">${esc(st.floor)}</dd>`;
+  h += `<dt>JDK</dt><dd class="v-">${esc(r[9])||'—'}</dd>
+    <dt>업데이트</dt><dd>${esc(r[14])||'—'}</dd>
+    <dt>판정</dt><dd>${bdg(r[17])} <span class="pr pr${r[18]}">P${r[18]}</span></dd></dl>`;
+  if(r[15]) h += `<div class="note" style="margin-top:9px"><b>사유</b> · ${esc(r[15])}</div>`;
+
+  if(jr) h += `<div class="sec-t">요구 JDK</div><dl class="dl">
+    <dt>최소</dt><dd class="v-">${esc(jr.min)}</dd>
+    <dt>권고</dt><dd class="v-s">${esc(jr.rec)}</dd>
+    <dt>비고</dt><dd style="font-size:11.5px">${esc(jr.note)}</dd></dl>`;
+
+  if(cm.length){
+    h += `<div class="sec-t">호환성 (${esc(r[6]||r[5])})</div><div class="tw"><table><thead><tr>
+      <th>버전</th>${CC.map(c=>`<th style="text-align:center">${esc(c)}</th>`).join('')}</tr></thead><tbody>`;
+    h += cm.map(c=>`<tr><td class="v-">${esc(c.ver)}</td>${
+      c.syms.map(s=>`<td style="text-align:center">${sym(s)}</td>`).join('')}</tr>`).join('');
+    h += '</tbody></table></div>';
+  }
+  if(el.length){
+    h += `<div class="sec-t">EOL / EOS</div><div class="tw"><table><thead><tr>
+      <th>버전</th><th>EOS</th><th>상태</th><th>전환 권고</th></tr></thead><tbody>`;
+    h += el.map(e=>`<tr><td class="v-">${esc(e.ver)}</td><td class="v-">${esc(e.eos)}</td>
+      <td>${sym(e.state)}</td><td>${esc(e.action)}</td></tr>`).join('');
+    h += '</tbody></table></div>';
+  }
+  /* ── 전환 영향도 ── */
+  const imp = [];
+  if(st && st.floor && r[21]==='미달')
+    imp.push(['버전', `현재 ${r[10]} → 표준 하한 ${st.floor} 이상으로 상향`, 'r']);
+  if(jr){
+    const need = jr.min || jr.rec;
+    const curJ = (r[9]||'').trim();
+    const oldJ = /^1\.[67]\./.test(curJ) || /^[67]\b/.test(curJ);
+    if(need && (oldJ || !curJ))
+      imp.push(['JDK', `${curJ?'현재 '+curJ:'미기재'} → 최소 ${need} 필요`, oldJ?'r':'a']);
+    else if(need && jr.rec && jr.rec!==jr.min)
+      imp.push(['JDK', `최소 ${jr.min} · 권고 ${jr.rec}`, 'n']);
+  }
+  const osRow = cm.find(c=>/★표준/.test(c.ver)) || cm[0];
+  if(osRow && r[5]!=='미기재'){
+    const idx = {'AIX':/7\.1/.test(r[4])?0:1,
+                 'Linux':/\b9(\.\d)?/.test(r[4])?3:2,
+                 'Windows':/2019/.test(r[4])?4:5}[r[5]];
+    if(idx!=null){
+      const s2 = osRow.syms[idx];
+      if(s2==='✗') imp.push(['OS', `${r[6]} 에서 ${osRow.ver} 미지원 — OS 전환 선행 필요`, 'r']);
+      else if(s2==='△') imp.push(['OS', `${r[6]} 조건부 지원 — ${osRow.note}`, 'a']);
+      else if(s2==='?') imp.push(['OS', `${r[6]} 조합 확인 필요 (SPV 대상)`, 'a']);
+    }
+  }
+  const eb = el.find(e=>e.state==='✗');
+  if(eb) imp.push(['EOL', `${eb.ver} 지원 종료(${eb.eos}) — ${eb.action}`, 'r']);
+
+  if(imp.length){
+    h += `<div class="sec-t">전환 영향도 · 선행 확인</div>
+      <div class="tw"><table><tbody>` +
+      imp.map(x=>`<tr><td style="width:62px"><span class="bd bd-${x[2]}">${esc(x[0])}</span></td>
+        <td style="font-size:12px">${esc(x[1])}</td></tr>`).join('') +
+      `</tbody></table></div>
+      <div class="note">이 자산을 상향할 때 함께 확인해야 하는 항목입니다.</div>`;
+  } else {
+    h += `<div class="sec-t">전환 영향도</div>
+      <div class="note">추가로 선행 확인할 항목이 없습니다.</div>`;
+  }
+
+  h += src('02_자산RAWDATA_통합 · 01_표준 · 03_호환성 · 04_JDK · 05_EOL');
+  h = (can('editor')
+      ? `<div class="tb" style="margin:-4px 0 12px;justify-content:flex-end">
+          <button class="btn" id="oedit">편집</button></div>`
+      : '') + h;
+  $('#ovt').textContent = r[0] + ' · ' + r[7];
+  $('#ovb').innerHTML = h;
+  $('#ov').classList.add('on');
+  const editBtn = $('#oedit');
+  if(editBtn) editBtn.onclick = ()=>openEdit(r[0]);
+}
+$('#ovx').onclick = ()=>$('#ov').classList.remove('on');
+$('#ov').onclick = e=>{ if(e.target.id==='ov') $('#ov').classList.remove('on'); };
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') $('#ov').classList.remove('on'); });
+
+/* ══════════ 대시보드 ══════════ */
+function rDash(){
+  const vc = cnt(A,r=>r[17]);
+  const inv = INV.reduce((s,i)=>s+i.n, 0);
+  const below = A.filter(r=>r[21]==='미달').length;
+  const p1 = A.filter(r=>r[18]===1).length;
+  const kp = [
+    ['k-n','총 자산', A.length, uniq(A.map(r=>r[1])).join(' · '), {}],
+    ['k-r','전환대상', vc['전환대상']||0, 'EOS 도래 · 업데이트 불가', {v:'전환대상'}],
+    ['k-a','전환권장', vc['전환권장']||0, '상위 버전 적용 가능', {v:'전환권장'}],
+    ['k-g','표준준수', vc['표준준수']||0, `준수율 ${pct(vc['표준준수']||0, A.length)}%`, {v:'표준준수'}],
+    ['k-r','1순위(72h)', p1, '즉시 조치 대상', {p:1}],
+    ['k-b','하한 미달', below, '표준 하한 미충족', {below:'미달'}],
+  ];
+  let h = `<div class="tb" style="justify-content:flex-end">
+    <button class="btn" id="dprint">인쇄 · PDF 저장</button></div>`;
+  h += '<div class="kpis">' + kp.map(k=>`<div class="kpi ${k[0]} dd" tabindex="0" role="button"
+    data-goto='${JSON.stringify(k[4])}' aria-label="${esc(k[1])} ${k[2]}건 자산 조회로 이동">
+    <div class="v">${k[2]}</div><div class="l">${k[1]}</div><div class="s">${esc(k[3])}</div></div>`).join('') + '</div>';
+
+  if(inv>0){
+    h += `<div class="warn"><b>권고역전 ${inv}건 감지</b> — 자산 원장의 권고버전이 현재 운영버전보다 낮습니다.
+      이 값을 그대로 적용하면 다운그레이드가 됩니다. 표준 하한을 상향하거나 권고값을 재확인해야 합니다.</div>`;
+  }
+
+  h += '<div class="grid2">' +
+    `<div class="card"><h3>표준 판정 <span class="n">${A.length}건 · 클릭하면 해당 자산으로</span></h3>
+      ${bars(vc, null, ['전환대상','전환권장','표준준수','검토'], 'v')}
+      <div class="src">01_표준 대조 · 02_자산RAWDATA</div></div>` +
+    `<div class="card"><h3>OS 계열 분포</h3>
+      ${bars(cnt(A,r=>r[5]),'var(--b)',['AIX','Linux','Windows','미기재'],'fam')}</div>` +
+    '</div>';
+
+  h += '<div class="grid2">' +
+    `<div class="card"><h3>계층별</h3>${bars(cnt(A,r=>r[1]),'var(--g)',null,'layer')}</div>` +
+    `<div class="card"><h3>운영 구분</h3>${bars(cnt(A,r=>r[2]),'var(--b)',null,'env')}</div>` +
+    '</div>';
+
+  /* ── 업무/시스템별 위험도 ── */
+  const sysMap = {};
+  A.forEach(r=>{
+    const k = r[3] || '(미지정)';
+    (sysMap[k] = sysMap[k] || {n:0, r:0, a:0, g:0, p1:0})['n']++;
+    if(r[17]==='전환대상') sysMap[k].r++;
+    else if(r[17]==='전환권장') sysMap[k].a++;
+    else sysMap[k].g++;
+    if(r[18]===1) sysMap[k].p1++;
+  });
+  const sysAll = Object.entries(sysMap)
+    .map(([k,v])=>({sys:k, ...v, risk: v.n ? v.r/v.n : 0}))
+    .filter(x=>x.n>=2);
+  const sysList = sysAll.slice().sort((a,b)=> b.r-a.r || b.risk-a.risk || b.n-a.n);
+  h += `<div class="card"><h3>업무/시스템별 위험도
+    <span class="n">전환대상 ${sysAll.reduce((s,x)=>s+x.r,0)}건 · 업무 ${sysAll.length}개 · 클릭하면 해당 업무로</span></h3>
+    <div class="tb" style="margin-bottom:9px">
+      <select id="rsort"><option value="r">전환대상 건수 순</option>
+        <option value="risk">위험 비율 순</option>
+        <option value="p1">P1(72h) 건수 순</option></select>
+      <span class="ct" id="rct"></span></div>
+    <div id="rlist">`;
+  h += sysList.slice(0,15).map(x=>`<div class="risk">
+    <div style="min-width:0">
+      <div class="risk-n">${esc(x.sys)}
+        ${x.p1?`<span class="pr pr1" style="margin-left:5px">P1 ${x.p1}</span>`:''}</div>
+      <button class="lnk" style="font-size:10.5px;font-weight:500"
+        data-goto='${JSON.stringify({q:x.sys})}'>자산 ${x.n}건 보기</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:9px">
+      <div class="risk-b" title="전환대상 ${x.r} · 전환권장 ${x.a} · 표준준수 ${x.g}">
+        <i style="width:${x.r/x.n*100}%;background:var(--r)"></i>
+        <i style="width:${x.a/x.n*100}%;background:var(--a)"></i>
+        <i style="width:${x.g/x.n*100}%;background:var(--g)"></i>
+      </div>
+      <span class="risk-m">${x.r}건 · ${Math.round(x.risk*100)}%</span>
+    </div></div>`).join('');
+  h += '</div>';
+  h += `<div class="legend"><span><i style="display:inline-block;width:11px;height:11px;
+      background:var(--r);border-radius:2px;vertical-align:-1px"></i> 전환대상</span>
+    <span><i style="display:inline-block;width:11px;height:11px;background:var(--a);
+      border-radius:2px;vertical-align:-1px"></i> 전환권장</span>
+    <span><i style="display:inline-block;width:11px;height:11px;background:var(--g);
+      border-radius:2px;vertical-align:-1px"></i> 표준준수</span></div>`;
+  h += `<div class="note">전환대상 건수가 많은 업무부터 조치하면 위험 감축 효과가 큽니다.
+    비율이 100%여도 자산이 2건이면 우선순위는 낮습니다.</div>`;
+  h += src('02_자산RAWDATA_통합') + '</div>';
+
+  if(INV.length){
+    h += `<div class="card"><h3>권고역전 상세 <span class="n">${INV.length}종 · ${inv}건</span></h3>
+      <div class="tw"><table id="invT"><thead><tr><th>제품</th><th>현재 운영</th><th>원장 권고</th>
+      <th class="num">건수</th><th>조치</th></tr></thead><tbody>` +
+      INV.map(i=>`<tr><td>${esc(i.prod)}</td><td class="v-c">${esc(i.cur)}</td>
+        <td class="v-x">${esc(i.rec)}</td><td class="num">${i.n}</td>
+        <td style="font-size:11.5px">권고 하한 상향 · 현행 유지</td></tr>`).join('') +
+      `</tbody></table></div>
+      <div class="note">판정 규칙 <b>R-V02</b> — 권고 하한이 관측 현재버전보다 낮으면 역전으로 표시하고 상향합니다.
+      현행 유지가 표준이며, 권고값을 낮추지 않습니다.</div></div>`;
+  }
+
+  if(DQ && DQ.length){
+    h += `<div class="card"><h3>데이터 품질 점검 <span class="n">원장 보완 필요</span></h3>
+      <div class="tw"><table><thead><tr><th>항목</th><th class="num">건수</th>
+      <th>영향</th><th>예시 자산ID</th></tr></thead><tbody>` +
+      DQ.map(q=>`<tr><td><b>${esc(q.k)}</b></td><td class="num">${q.n}</td>
+        <td style="font-size:11.5px;color:var(--sub)">${esc(q.why)}</td>
+        <td class="v-" style="font-size:11px">${q.ex.map(esc).join(', ')}${q.n>q.ex.length?' …':''}</td></tr>`).join('') +
+      `</tbody></table></div>
+      <div class="note">위 항목은 자산 원장(<b>02_자산RAWDATA_통합</b>)에서 보완하면 판정 정확도가 올라갑니다.</div></div>`;
+  }
+
+  const urg = A.filter(r=>r[17]==='전환대상').sort((a,b)=>a[18]-b[18]);
+  h += `<div class="card"><h3>전환대상 우선순위 <span class="n">${urg.length}건</span></h3>
+    ${atable(urg,{lim:15, goto:{v:'전환대상'}})}${src('02_자산RAWDATA_통합')}</div>`;
+  $('#tab-dash').innerHTML = h;
+  bindRows($('#tab-dash'));
+  $('#dprint').onclick = ()=>window.print();
+
+  /* 위험도 정렬 토글 */
+  const drawRisk = ()=>{
+    const k = $('#rsort').value;
+    const L = sysAll.slice().sort((a,b)=>
+      k==='risk' ? (b.risk-a.risk || b.r-a.r) :
+      k==='p1'   ? (b.p1-a.p1 || b.r-a.r) :
+                   (b.r-a.r || b.risk-a.risk || b.n-a.n));
+    $('#rct').textContent = `상위 15 / ${sysAll.length}개 업무`;
+    $('#rlist').innerHTML = L.slice(0,15).map(x=>`<div class="risk">
+      <div style="min-width:0">
+        <div class="risk-n">${esc(x.sys)}
+          ${x.p1?`<span class="pr pr1" style="margin-left:5px">P1 ${x.p1}</span>`:''}</div>
+        <button class="lnk" style="font-size:10.5px;font-weight:500"
+          data-goto='${JSON.stringify({q:x.sys})}'>자산 ${x.n}건 보기</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px">
+        <div class="risk-b" title="전환대상 ${x.r} · 전환권장 ${x.a} · 표준준수 ${x.g}">
+          <i style="width:${x.r/x.n*100}%;background:var(--r)"></i>
+          <i style="width:${x.a/x.n*100}%;background:var(--a)"></i>
+          <i style="width:${x.g/x.n*100}%;background:var(--g)"></i>
+        </div>
+        <span class="risk-m">${x.r}건 · ${Math.round(x.risk*100)}%</span>
+      </div></div>`).join('');
+    bindRows($('#rlist'));
+  };
+  $('#rsort').onchange = drawRisk;
+  drawRisk();
+  // 키보드 접근
+  $('#tab-dash').querySelectorAll('.dd').forEach(el=>{
+    el.onkeydown = e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); el.click(); } };
+  });
+}
+
+/* ══════════ 표준 버전 ══════════ */
+function rStd(){
+  const fams = uniq(STD.map(s=>s.fam));
+  let h = `<div class="info">OS 기반별 표준 지정버전과 하한(≥)입니다.
+    표준 하한은 고정점이 아니며, 현재 운영버전이 하한 이상이면 표준 준수로 판정합니다.</div>`;
+  fams.forEach(f=>{
+    const rows = STD.filter(s=>s.fam===f);
+    const mine = A.filter(a=>a[5]===f);
+    const g = mine.filter(a=>a[17]==='표준준수').length;
+    h += `<div class="card"><h3>${esc(f)} 기반 표준 스택
+      <span class="n">${rows.length}개 제품 · 자산 ${mine.length}건 · 준수 ${pct(g,mine.length)}%</span></h3>
+      <div class="tw"><table><thead><tr><th>계층</th><th>제품</th><th>표준 지정버전</th>
+      <th>하한(≥)</th><th>권고 JDK</th><th>EOS</th><th class="num">자산</th>
+      <th class="num">전환대상</th><th>비고</th>
+      </tr></thead><tbody>`;
+    h += rows.map(s=>{
+      const own = mine.filter(a=>a[8]===s.canon);
+      const n = own.length;
+      const bad = own.filter(a=>a[17]==='전환대상').length;
+      return `<tr><td><span class="bd bd-n">${esc(s.layer)}</span></td>
+        <td><b>${esc(s.prod)}</b></td>
+        <td class="v-s">${esc(s.std)||'—'}</td>
+        <td class="v-">${esc(s.floor)||'—'}</td>
+        <td class="v-">${esc(s.jdk)||'—'}</td>
+        <td class="v-">${esc(s.eos)||'—'}</td>
+        <td class="num">${n?`<button class="lnk"
+          data-goto='${JSON.stringify({fam:s.fam, prod:s.canon})}'>${n}</button>`:'—'}</td>
+        <td class="num">${bad?`<span class="bd bd-r">${bad}</span>`:'—'}</td>
+        <td style="font-size:11px;color:var(--sub)">${esc(s.note)}</td></tr>`;
+    }).join('');
+    h += '</tbody></table></div></div>';
+  });
+  h += src('01_표준_권고버전마스터');
+  $('#tab-std').innerHTML = h;
+  bindRows($('#tab-std'));
+}
+
+/* ══════════ 호환성 매트릭스 ══════════ */
+function rMtx(){
+  const prods = uniq(CMP.map(c=>c.prod));
+  let h = `<div class="info">행은 제품·버전, 열은 OS 종류·버전입니다.
+    셀 판정은 초안이며 벤더 공식 Certification Matrix 대조(SPV) 후 확정합니다.</div>`;
+  h += `<div class="tb">
+    <input type="search" id="mq" placeholder="제품 · 버전 · 제약 검색">
+    <select id="mc"><option value="">분류 전체</option>${
+      uniq(CMP.map(c=>c.cat)).map(c=>`<option>${esc(c)}</option>`).join('')}</select>
+    <select id="ms"><option value="">판정 전체</option>${
+      ['◎','○','△','✗','?'].map(s=>`<option value="${s}">${s} ${esc(SYN[s]||'')}</option>`).join('')}</select>
+    ${can('editor') ? '<button class="btn" id="mx">CSV 내보내기</button>' : ''}
+    <span class="ct" id="mn"></span></div>`;
+  h += `<div class="card"><div class="tw sc"><table><thead><tr>
+    <th>분류</th><th>제품</th><th>버전</th>
+    ${CC.map(c=>`<th style="text-align:center">${esc(c)}</th>`).join('')}
+    <th>제약 · 비고</th></tr></thead><tbody id="mb"></tbody></table></div>`;
+  h += '<div class="legend">' + ['◎','○','△','✗','?']
+    .map(k=>`<span>${sym(k)} ${esc(SYN[k])}</span>`).join('') + '</div>';
+  h += src('03_호환성_Matrix') + '</div>';
+  $('#tab-mtx').innerHTML = h;
+
+  let cur = CMP;
+  function draw(){
+    const q = ($('#mq').value||'').trim().toLowerCase();
+    const c0 = $('#mc').value, s0 = $('#ms').value;
+    cur = CMP.filter(c=>
+      (!c0 || c.cat===c0) &&
+      (!s0 || c.syms.includes(s0)) &&
+      (!q || (c.prod+' '+c.ver+' '+c.note).toLowerCase().includes(q)));
+    $('#mn').textContent = cur.length + ' / ' + CMP.length + ' 행';
+    let last = '';
+    $('#mb').innerHTML = cur.map((c,i)=>{
+      const cat = c.cat!==last ? `<td class="nw"><span class="bd bd-b">${esc(c.cat)}</span></td>` : '<td></td>';
+      last = c.cat;
+      return `<tr class="${i%2?'alt':''}">${cat}<td>${esc(c.prod)}</td>
+        <td class="v- nw">${esc(c.ver)}</td>
+        ${c.syms.map(s=>`<td style="text-align:center">${sym(s)}</td>`).join('')}
+        <td style="font-size:11px;color:var(--sub)">${esc(c.note)}</td></tr>`;
+    }).join('') || `<tr><td colspan="${CC.length+4}" style="text-align:center;padding:32px;color:var(--sub)">조건에 맞는 행이 없습니다.</td></tr>`;
+  }
+  $('#mq').oninput = draw; $('#mc').onchange = draw; $('#ms').onchange = draw;
+  const mx = $('#mx');
+  if(mx) mx.onclick = ()=>{
+    const q = v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+    const head = ['분류','제품','버전',...CC,'제약·비고'].map(q).join(',');
+    const body = cur.map(c=>[c.cat,c.prod,c.ver,...c.syms,c.note].map(q).join(',')).join('\r\n');
+    download(`호환성매트릭스_${stamp()}.csv`, '\uFEFF'+head+'\r\n'+body);
+  };
+  draw();
+}
+
+/* ══════════ JDK ══════════ */
+function rJdk(){
+  let h = `<div class="warn"><b>JDK 불일치는 미들웨어 호환성 장애의 1순위 원인</b>입니다.
+    OS 매트릭스와 별도로 반드시 확인하십시오.</div>`;
+  h += `<div class="card"><h3>WAS · WEB 제품별 요구 JDK <span class="n">${JDK.length}개</span></h3>
+    <div class="tw"><table><thead><tr><th>제품 · 버전</th><th>최소 JDK</th><th>권고 JDK</th>
+    <th>운영 관측</th><th class="num">자산</th><th>비고</th></tr></thead><tbody>`;
+  h += JDK.map((j,i)=>{
+    const n = A.filter(a=>a[8]===j.canon).length;
+    return `<tr class="${i%2?'alt':''}"><td><b>${esc(j.prod)}</b></td>
+      <td class="v-">${esc(j.min)||'—'}</td>
+      <td class="v-s">${esc(j.rec)||'—'}</td>
+      <td class="v-">${esc(j.obs)||'—'}</td>
+      <td class="num">${n||'—'}</td>
+      <td style="font-size:11px;color:var(--sub)">${esc(j.note)}</td></tr>`;
+  }).join('');
+  h += '</tbody></table></div>';
+
+  const jdkAssets = A.filter(a=>a[9]);
+  const old = jdkAssets.filter(a=>/1\.[67]\./.test(a[9]));
+  if(old.length){
+    h += `<div class="note" style="margin-top:12px"><b>JDK 6·7 계열 운영 자산 ${old.length}건</b>
+      — 상향 대상입니다.</div>` + atable(old,{lim:10});
+  }
+  h += src('04_WAS_WEB_JDK요구 · 02_자산RAWDATA') + '</div>';
+  $('#tab-jdk').innerHTML = h;
+  bindRows($('#tab-jdk'));
+}
+
+/* ══════════ 필수 SW ══════════ */
+function rSw(){
+  let h = `<div class="info"><b>검증 경로 B</b> — 백신·백업·모니터링·접근제어 등 필수 소프트웨어는
+    인터넷·AI 조회가 불가하여 담당자 수동검색 버전을 반영했습니다.
+    정확한 버전은 벤더 확인서로 확정합니다.</div>`;
+  h += `<div class="tb"><input type="search" id="swq" placeholder="OS 검색 (예: RHEL, AIX, Windows)">
+    <span class="ct" id="swc"></span></div>`;
+  h += `<div class="card"><div class="tw sc"><table><thead><tr>
+    <th>OS</th><th>버전</th><th>패치</th><th>상태</th><th>EOS</th><th>우선순위</th>
+    ${SWN.map(s=>`<th>${esc(s)}</th>`).join('')}</tr></thead><tbody id="swb"></tbody></table></div>
+    ${src('07_필수SW_OS별버전')}</div>`;
+  $('#tab-sw').innerHTML = h;
+
+  function draw(){
+    const q = ($('#swq').value||'').trim().toLowerCase();
+    const rows = SW.filter(r=>!q || (r.os+' '+r.ver).toLowerCase().includes(q));
+    $('#swc').textContent = rows.length + ' / ' + SW.length + ' 행';
+    $('#swb').innerHTML = rows.map((r,i)=>{
+      const bad = /단종|EOS/.test(r.state);
+      return `<tr class="${i%2?'alt':''}"><td><b>${esc(r.os)}</b></td>
+        <td class="v-">${esc(r.ver)}</td><td class="v-">${esc(r.patch)||'—'}</td>
+        <td>${bad?`<span class="bd bd-r">${esc(r.state)}</span>`:`<span class="bd bd-g">${esc(r.state)||'—'}</span>`}</td>
+        <td class="v-">${esc(r.eos)||'—'}</td>
+        <td style="font-size:11px">${esc(r.prio)||'—'}</td>
+        ${r.sw.map(v=>`<td class="v-">${esc(v)||'—'}</td>`).join('')}</tr>`;
+    }).join('');
+  }
+  $('#swq').oninput = draw; draw();
+}
+
+/* ── CSV 내보내기 (BOM 포함 · 엑셀 한글 정상) ── */
+const CSVH = ['자산ID','계층','운영구분','업무/시스템','OS','OS계열','제품',
+  'JDK','현재버전','권고버전','EOS여부','업데이트','판정','우선순위','표준하한','하한대조','사유'];
+function toCSV(rows){
+  const q = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+  const line = r => [r[0],r[1],r[2],r[3],r[4],r[5],r[7],r[9],r[10],r[11],
+                     r[13],r[14],r[17],'P'+r[18],r[19],r[21],r[15]].map(q).join(',');
+  return '\uFEFF' + CSVH.map(q).join(',') + '\r\n' + rows.map(line).join('\r\n');
+}
+function download(name, text){
+  const b = new Blob([text], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+function stamp(){ const d=new Date(); const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`; }
+
+/* ══════════ 자산 조회 ══════════ */
+let AF = {q:'',layer:'',fam:'',env:'',v:'',p:'',below:'',prod:'',patch:''};
+function rAsset(){
+  const sel = (id,label,opts)=>`<select id="af_${id}"><option value="">${label} 전체</option>` +
+    opts.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('') + '</select>';
+  $('#tab-asset').innerHTML = `<div class="tb">
+    <input type="search" id="afq" placeholder="자산ID · 업무 · 제품 · OS 검색">
+    ${sel('layer','계층',uniq(A.map(r=>r[1])))}
+    ${sel('prod','제품',uniq(A.map(r=>r[8])).sort())}
+    ${sel('fam','OS',uniq(A.map(r=>r[5])))}
+    ${sel('env','운영',uniq(A.map(r=>r[2])))}
+    ${sel('v','판정',['전환대상','전환권장','표준준수','검토'])}
+    ${sel('p','우선순위',['1','2','3','4'])}
+    ${sel('below','하한',['미달','충족'])}
+    <button class="btn" id="afreset">초기화</button>
+    ${can('editor') ? '<button class="btn" id="afx">CSV 내보내기</button>' : ''}
+    <span class="ct" id="afc"></span></div>
+    <div id="afr"></div>`;
+
+  ['afq','af_layer','af_prod','af_fam','af_env','af_v','af_p','af_below'].forEach(id=>{
+    const el = $('#'+id);
+    if(el) el[id==='afq'?'oninput':'onchange'] = ()=>{ readUI(); draw(); };
+  });
+  let cur = A;
+  const afx = $('#afx');
+  if(afx) afx.onclick = ()=>download(`자산현황_${stamp()}.csv`, toCSV(cur));
+  $('#afreset').onclick = ()=>{ AF={q:'',layer:'',fam:'',env:'',v:'',p:'',below:'',prod:''}; writeUI(); draw(); };
+
+  function readUI(){
+    AF.q = ($('#afq').value||'').trim().toLowerCase();
+    AF.layer = $('#af_layer').value; AF.fam = $('#af_fam').value;
+    AF.env = $('#af_env').value; AF.v = $('#af_v').value;
+    AF.p = $('#af_p').value; AF.below = $('#af_below').value;
+    AF.prod = $('#af_prod').value;
+  }
+  function writeUI(){
+    $('#afq').value = AF.q;
+    $('#af_layer').value = AF.layer; $('#af_fam').value = AF.fam;
+    $('#af_env').value = AF.env; $('#af_v').value = AF.v;
+    $('#af_p').value = AF.p; $('#af_below').value = AF.below;
+    $('#af_prod').value = AF.prod;
+  }
+  function draw(){
+    let rows = A.filter(r=>
+      (!AF.layer||r[1]===AF.layer) && (!AF.fam||r[5]===AF.fam) &&
+      (!AF.env||r[2]===AF.env) && (!AF.v||r[17]===AF.v) &&
+      (!AF.p||String(r[18])===String(AF.p)) &&
+      (!AF.below||r[21]===AF.below) && (!AF.prod||r[8]===AF.prod) &&
+      (!AF.patch||patchType(r)===AF.patch) &&
+      (!AF.q || (r[0]+' '+r[3]+' '+r[7]+' '+r[4]+' '+r[10]).toLowerCase().includes(AF.q)));
+    rows.sort((a,b)=>a[18]-b[18]);
+    cur = rows;
+    const on = Object.entries(AF).filter(([k,v])=>v).length;
+    $('#afc').textContent = rows.length + ' / ' + A.length + ' 건'
+      + (on?` · 필터 ${on}개`:'') + (AF.patch?` · ${AF.patch}`:'');
+    if(!rows.length){
+      $('#afr').innerHTML = `<div class="card" style="text-align:center;padding:44px;color:var(--sub)">
+        조건에 맞는 자산이 없습니다.
+        <div style="margin-top:10px"><button class="btn" onclick="document.getElementById('afreset').click()">필터 초기화</button></div></div>`;
+      return;
+    }
+    $('#afr').innerHTML = atable(rows) + src('02_자산RAWDATA_통합');
+    bindRows($('#afr'));
+    const t = $('#afr table');
+    if(t) sortable(t, ()=>cur, ()=>{
+      $('#afr').innerHTML = atable(cur) + src('02_자산RAWDATA_통합');
+      bindRows($('#afr'));
+      const t2 = $('#afr table');
+      if(t2) sortable(t2, ()=>cur, ()=>{}, ACOL);
+    }, ACOL);
+  }
+  applyPending();
+  writeUI(); draw();
+
+  function applyPending(){
+    if(!pendingFilter) return;
+    const f = pendingFilter; pendingFilter = null;
+    AF = {q:'',layer:'',fam:'',env:'',v:'',p:'',below:'',prod:'',patch:''};
+    if(f.q)     AF.q = String(f.q).toLowerCase();
+    if(f.patch) AF.patch = f.patch;
+    if(f.layer) AF.layer = f.layer;
+    if(f.fam)   AF.fam = f.fam;
+    if(f.env)   AF.env = f.env;
+    if(f.v)     AF.v = f.v;
+    if(f.p)     AF.p = String(f.p);
+    if(f.below) AF.below = f.below;
+    if(f.prod)  AF.prod = f.prod;
+  }
+  rAsset.apply2 = ()=>{ applyPending(); writeUI(); draw(); };
+}
+
+</script>

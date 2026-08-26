@@ -1,0 +1,2 @@
+openpyxl>=3.1.0
+cryptography>=41.0.0   # 봉투 암호화 빌드용 (--encrypt). 평문 빌드에는 불필요

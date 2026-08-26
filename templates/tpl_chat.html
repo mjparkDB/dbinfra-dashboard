@@ -1,0 +1,451 @@
+<script>
+/* ══════════════════════════════════════════════
+   질의 챗봇 — 독립 챗봇 NLU + 포털 자산 데이터 통합
+   ══════════════════════════════════════════════ */
+const ALIAS = [
+  ['오라클','Oracle Database'],['oracle db','Oracle Database'],['oracle database','Oracle Database'],
+  ['oracle','Oracle Database'],['19c','Oracle Database'],['11g','Oracle Database'],['12c','Oracle Database'],
+  ['ms sql','MS SQL Server'],['mssql','MS SQL Server'],['ms-sql','MS SQL Server'],
+  ['sql server','MS SQL Server'],['sqlserver','MS SQL Server'],['엠에스에스큐엘','MS SQL Server'],
+  ['postgresql','PostgreSQL'],['postgres','PostgreSQL'],['포스트그레','PostgreSQL'],['psql','PostgreSQL'],
+  ['mariadb','MariaDB'],['마리아디비','MariaDB'],['마리아','MariaDB'],
+  ['mysql','MySQL'],['마이에스큐엘','MySQL'],
+  ['sap hana','SAP HANA'],['hana','SAP HANA'],['하나디비','SAP HANA'],
+  ['tomcat','Apache Tomcat'],['톰캣','Apache Tomcat'],['톰캐트','Apache Tomcat'],['apache tomcat','Apache Tomcat'],
+  ['websphere','IBM WebSphere'],['웹스피어','IBM WebSphere'],['was','IBM WebSphere'],['ibm was','IBM WebSphere'],
+  ['ihs','IBM HTTP Server (IHS)'],['ibm http','IBM HTTP Server (IHS)'],['아이에이치에스','IBM HTTP Server (IHS)'],
+  ['jeus','TmaxSoft JEUS'],['제우스','TmaxSoft JEUS'],['티맥스 제우스','TmaxSoft JEUS'],
+  ['webtob','TmaxSoft WebtoB'],['웹투비','TmaxSoft WebtoB'],['웹트비','TmaxSoft WebtoB'],
+  ['lena was','LENA WAS (LG CNS)'],['레나 was','LENA WAS (LG CNS)'],['레나was','LENA WAS (LG CNS)'],
+  ['lena web','LENA WEB (LG CNS)'],['레나 web','LENA WEB (LG CNS)'],['레나web','LENA WEB (LG CNS)'],
+  ['lena','LENA WAS (LG CNS)'],['레나','LENA WAS (LG CNS)'],
+  ['jboss','Red Hat JBoss EAP'],['제이보스','Red Hat JBoss EAP'],['eap','Red Hat JBoss EAP'],
+  ['weblogic','Oracle WebLogic'],['웹로직','Oracle WebLogic'],
+  ['nginx','Nginx'],['엔진엑스','Nginx'],['엔진x','Nginx'],
+  ['apache http','Apache HTTP Server'],['httpd','Apache HTTP Server'],
+  ['apache','Apache HTTP Server'],['아파치','Apache HTTP Server'],
+  ['iis','Microsoft IIS'],['아이아이에스','Microsoft IIS'],
+  ['mosquitto','Mosquitto (MQTT)'],['mqtt','Mosquitto (MQTT)'],['모스키토','Mosquitto (MQTT)'],
+  ['odm','IBM ODM'],['룰엔진','IBM ODM'],
+  ['openjdk','OpenJDK (Temurin)'],['temurin','OpenJDK (Temurin)'],['테무린','OpenJDK (Temurin)'],
+  ['kafka','Apache Kafka'],['카프카','Apache Kafka'],
+  ['redis','Redis'],['레디스','Redis'],
+];
+const OSAL = [
+  ['aix','AIX'],['에이아이엑스','AIX'],['유닉스','AIX'],['unix','AIX'],
+  ['rhel','Linux'],['redhat','Linux'],['red hat','Linux'],['레드햇','Linux'],['리눅스','Linux'],
+  ['linux','Linux'],['centos','Linux'],['rocky','Linux'],['oracle linux','Linux'],['ubuntu','Linux'],
+  ['windows','Windows'],['윈도우','Windows'],['윈도','Windows'],['win','Windows'],['ws20','Windows'],
+];
+const norm = t => (t||'').toLowerCase().replace(/\s+/g,' ').trim();
+
+function dProd(t){
+  let best=null, bl=0;
+  for(const [k,v] of ALIAS){ if(t.includes(k) && k.length>bl){ best=v; bl=k.length; } }
+  return best;
+}
+function dOS(t){
+  let best=null, bl=0;
+  for(const [k,v] of OSAL){ if(t.includes(k) && k.length>bl){ best=v; bl=k.length; } }
+  return best;
+}
+function dOSVer(t){
+  const m = t.match(/(?:aix|rhel|redhat|red hat|centos|rocky|windows|win|서버|server)\s*(\d{1,4}(?:\.\d+)?)/);
+  return m ? m[1] : null;
+}
+function dIntent(t){
+  /* 구체적인 의도를 먼저 판정 — '현황'처럼 넓은 어휘보다 우선 */
+  if(/역전|다운그레이드|낮은\s*권고/.test(t)) return 'inv';
+  if(/jdk|자바|java/.test(t)) return 'jdk';
+  if(/우선순위|시급|긴급|먼저|72\s*시간|1순위/.test(t)) return 'priority';
+  if(/판정|준수|표준\s*맞|표준\s*인가|적격|괜찮/.test(t)) return 'verdict';
+  if(/eos|eol|종료|단종|지원\s*끝|언제까지|라이프사이클|수명/.test(t)) return 'eol';
+  if(/전환|마이그|업그레이드|올려|경로|바꾸|이행/.test(t)) return 'transition';
+  if(/호환|되나|되니|돼|올라가|올려도|조합|지원하|가능/.test(t)) return 'compat';
+  if(/몇\s*대|몇\s*건|자산|서버\s*목록|현황|리스트|어디에|누가\s*쓰/.test(t)) return 'asset';
+  if(/스택|전체|목록|뭐\s*깔|뭐\s*설치|신규\s*서버|무엇을|어떤\s*걸/.test(t)) return 'stack';
+  return 'standard';
+}
+
+/* 질의에서 제품 버전 토큰 추출 — "tomcat 10.1" -> "10.1" */
+function dVer(t){
+  const m = t.match(/(\d+\.\d+(?:\.\d+)*|\d+g|\d+c|20\d\d)/);
+  return m ? m[1] : null;
+}
+
+function osColIdx(fam, t){
+  if(fam==='AIX')     return /7\.1/.test(t) ? 0 : 1;
+  if(fam==='Linux')   return /\b9(\.\d)?\b/.test(t) ? 3 : 2;
+  if(fam==='Windows') return /2019/.test(t) ? 4 : 5;
+  return -1;
+}
+
+/* ── 답변 생성 ── */
+function answer(q){
+  const t = norm(q), prod = dProd(t), os = dOS(t), it = dIntent(t);
+
+  /* 권고역전 */
+  if(it==='inv'){
+    if(!INV.length) return {html:'<h4>권고역전</h4>감지된 역전 항목이 없습니다.', fu:['전환대상 자산']};
+    const n = INV.reduce((s,i)=>s+i.n,0);
+    return {html:`<h4>권고역전 ${INV.length}종 · ${n}건</h4>
+      원장 권고버전이 현재 운영버전보다 낮은 항목입니다. 적용 시 다운그레이드가 됩니다.
+      <div class="tw"><table><thead><tr><th>제품</th><th>현재</th><th>권고</th><th class="num">건수</th></tr></thead><tbody>`+
+      INV.map(i=>`<tr><td>${esc(i.prod)}</td><td class="v-c">${esc(i.cur)}</td>
+        <td class="v-x">${esc(i.rec)}</td><td class="num">${i.n}</td></tr>`).join('')+
+      '</tbody></table></div>'+src('R-V02 판정규칙 · 02_자산RAWDATA'),
+      fu:['전환대상 자산','Tomcat 표준버전']};
+  }
+
+  /* 자산 조회 */
+  if(it==='asset'){
+    let ms = A.slice();
+    if(prod) ms = ms.filter(r=>r[8]===prod);
+    if(os)   ms = ms.filter(r=>r[5]===os);
+    if(!prod && !os) return {html:`<h4>자산 현황</h4>전체 <b>${A.length}건</b>입니다. 제품이나 OS를 지정하면 좁혀서 보여드립니다.`+
+      bars(cnt(A,r=>r[17]),null,['전환대상','전환권장','표준준수'])+src('02_자산RAWDATA_통합'),
+      fu:['Tomcat 몇 대?','AIX 자산 현황','전환대상 자산']};
+    if(!ms.length) return {html:`<h4>${esc(prod||os)} 자산</h4>해당하는 자산이 없습니다.`, fu:['전체 자산 현황']};
+    const g = ms.filter(r=>r[17]==='표준준수').length,
+          a2= ms.filter(r=>r[17]==='전환권장').length,
+          r2= ms.filter(r=>r[17]==='전환대상').length;
+    return {html:`<h4>${esc(prod||'')}${os?(prod?' · ':'')+os:''} 자산</h4>
+      <b>총 ${ms.length}건</b> — <span class="bd bd-g">준수 ${g}</span>
+      <span class="bd bd-a">권장 ${a2}</span> <span class="bd bd-r">대상 ${r2}</span>
+      · 준수율 <b>${pct(g,ms.length)}%</b>`+
+      atable(ms.sort((x,y)=>x[18]-y[18]),{lim:12})+src('02_자산RAWDATA + 01_표준'),
+      fu:[(prod||os)+' 표준버전은?', (prod||os)+' EOS', '전환 우선순위']};
+  }
+
+  /* 우선순위 */
+  if(it==='priority'){
+    const p1 = A.filter(r=>r[18]===1).sort((a,b)=>a[18]-b[18]);
+    return {html:`<h4>1순위 조치 대상 (72시간)</h4>
+      <b>${p1.length}건</b> — EOS 도래 또는 EOL 계열로 업데이트 불가한 자산입니다.`+
+      atable(p1,{lim:15})+src('02_자산RAWDATA · 컨텍스트팩 4.3 우선순위'),
+      fu:['전환대상 전체','WebSphere 자산','AIX 자산 현황']};
+  }
+
+  /* 표준 판정 */
+  if(it==='verdict' && prod){
+    const ms = A.filter(r=>r[8]===prod && (!os||r[5]===os));
+    if(!ms.length) return {html:`<h4>${esc(prod)} 판정</h4>해당 자산이 없습니다.`, fu:['전체 자산 현황']};
+    const vc = cnt(ms,r=>r[17]);
+    return {html:`<h4>${esc(prod)} 표준 판정</h4>총 ${ms.length}건`+
+      bars(vc,null,['전환대상','전환권장','표준준수'])+
+      atable(ms.filter(r=>r[17]!=='표준준수').sort((a,b)=>a[18]-b[18]),{lim:10})+
+      src('01_표준 대조'), fu:[prod+' 표준버전', prod+' 호환성']};
+  }
+
+  /* JDK */
+  if(it==='jdk'){
+    /* JDK 6/7 등 특정 JDK 버전을 쓰는 자산 조회 */
+    const jv = t.match(/jdk\s*([678]|1\.[678])|자바\s*([678])/);
+    if(jv && /서버|자산|쓰는|사용|목록|몇/.test(t)){
+      const n = (jv[1]||jv[2]||'').replace('1.','');
+      const re = new RegExp('^(1\\.'+n+'\\.|'+n+'\\.|'+n+'$)');
+      const ms = A.filter(r=>r[9] && re.test(r[9].trim()));
+      if(!ms.length) return {html:`<h4>JDK ${esc(n)} 운영 자산</h4>해당 JDK를 쓰는 자산이 없습니다.`,
+        fu:['JDK 요구 버전','전환 우선순위']};
+      return {html:`<h4>JDK ${esc(n)} 운영 자산</h4><b>${ms.length}건</b>
+        — 상위 JDK 상향 검토 대상입니다.`+
+        atable(ms.sort((a,b)=>a[18]-b[18]),{lim:14})+src('02_자산RAWDATA · 04_JDK요구'),
+        fu:['JDK 요구 버전','전환 우선순위']};
+    }
+    if(prod){
+      const vq = dVer(t);
+      const cand = JDK.filter(x=>x.canon===prod);
+      let j = null;
+      if(vq) j = cand.find(x=>x.prod.includes(vq));
+      if(!j) j = cand[0];
+      if(cand.length>1 && !vq){
+        return {html:`<h4>${esc(prod)} 요구 JDK</h4>
+          <div class="tw"><table><thead><tr><th>제품 · 버전</th><th>최소</th><th>권고</th><th>관측</th></tr></thead><tbody>`+
+          cand.map(x=>`<tr><td>${esc(x.prod)}</td><td class="v-">${esc(x.min)}</td>
+            <td class="v-s">${esc(x.rec)}</td><td class="v-">${esc(x.obs)||'—'}</td></tr>`).join('')+
+          `</tbody></table></div>
+          <div class="note">${esc(cand[0].note)}</div>`+src('04_WAS_WEB_JDK요구'),
+          fu:cand.map(x=>x.prod+' JDK').slice(0,3)};
+      }
+      if(j) return {html:`<h4>${esc(j.prod)} 요구 JDK</h4>
+        최소 <b class="v-">${esc(j.min)}</b> · 권고 <b class="v-s">${esc(j.rec)}</b>
+        · 운영 관측 <span class="v-">${esc(j.obs)||'—'}</span>
+        <div class="note">${esc(j.note)}</div>`+src('04_WAS_WEB_JDK요구'),
+        fu:[prod+' 자산 현황', 'JDK 6 쓰는 서버']};
+    }
+    const old = A.filter(r=>/1\.[67]\./.test(r[9]));
+    return {html:`<h4>JDK 요구 버전</h4>제품별 최소·권고 JDK입니다.
+      <div class="tw"><table><thead><tr><th>제품</th><th>최소</th><th>권고</th><th>관측</th></tr></thead><tbody>`+
+      JDK.map(j=>`<tr><td>${esc(j.prod)}</td><td class="v-">${esc(j.min)}</td>
+        <td class="v-s">${esc(j.rec)}</td><td class="v-">${esc(j.obs)||'—'}</td></tr>`).join('')+
+      `</tbody></table></div>
+      <div class="note">JDK 6·7 계열 운영 자산 <b>${old.length}건</b> — 상향 대상입니다.</div>`+
+      src('04_WAS_WEB_JDK요구'), fu:['Tomcat JDK','WebSphere JDK','전환 우선순위']};
+  }
+
+  /* EOL */
+  if(it==='eol'){
+    let L = EOL.filter(e=>(prod&&e.canon===prod) || (os&&e.prod.toLowerCase().includes(os.toLowerCase())));
+    if(!L.length && !prod && !os) L = EOL.filter(e=>e.state==='✗'||e.state==='△');
+    if(!L.length) return {html:'<h4>EOL 조회</h4>제품이나 OS를 지정해 주십시오.', fu:['Oracle EOS','AIX EOS','Tomcat EOS']};
+    return {html:`<h4>EOL / EOS ${prod?'· '+esc(prod):''}</h4>
+      <div class="tw"><table><thead><tr><th>제품</th><th>버전</th><th>EOS</th><th>상태</th><th>전환 권고</th></tr></thead><tbody>`+
+      L.map(e=>`<tr><td>${esc(e.prod)}</td><td class="v-">${esc(e.ver)}</td>
+        <td class="v-">${esc(e.eos)}</td><td>${sym(e.state)}</td>
+        <td style="font-size:11.5px">${esc(e.action)}</td></tr>`).join('')+
+      '</tbody></table></div>'+src('05_EOL_전환참고'),
+      fu:[(prod||'해당 제품')+' 자산 현황','전환 우선순위']};
+  }
+
+  /* 호환성 */
+  if(it==='compat' && prod){
+    const rows = CMP.filter(c=>c.canon===prod);
+    if(!rows.length) return {html:`<h4>${esc(prod)} 호환성</h4>매트릭스에 등록되지 않은 제품입니다.`,
+      fu:['Tomcat 호환성','Oracle 호환성']};
+    const idx = os ? osColIdx(os, t) : -1;
+    if(idx>=0){
+      const vq = dVer(t);
+      let pick = null;
+      if(vq) pick = rows.find(r=>String(r.ver).toLowerCase().includes(vq));
+      if(!pick) pick = rows.find(r=>/★표준/.test(r.ver));      /* 표준 라인 우선 */
+      if(!pick) pick = rows.find(r=>!/EOL/i.test(r.ver));       /* EOL 아닌 것 */
+      if(!pick) pick = rows[0];
+      const s = pick.syms[idx];
+      return {html:`<h4>${esc(prod)} ${esc(pick.ver)} × ${esc(CC[idx])}</h4>
+        <div style="font-size:26px;margin:6px 0">${sym(s)}
+          <span style="font-size:14px;font-weight:600">${esc(SYN[s]||'확인 필요')}</span></div>
+        <div class="note">${esc(pick.note)}</div>
+        ${rows.length>1?`<div class="note" style="margin-top:8px">
+          다른 버전 · ${rows.filter(r=>r!==pick).map(r=>
+            `${esc(r.ver)} ${sym(r.syms[idx])}`).join(' · ')}</div>`:''}`+src('03_호환성_Matrix'),
+        fu:[prod+' 전체 호환성', prod+' 자산 현황']};
+    }
+    return {html:`<h4>${esc(prod)} 호환성</h4>
+      <div class="tw"><table><thead><tr><th>버전</th>
+      ${CC.map(c=>`<th style="text-align:center">${esc(c)}</th>`).join('')}<th>비고</th></tr></thead><tbody>`+
+      rows.map(r=>`<tr><td class="v-">${esc(r.ver)}</td>
+        ${r.syms.map(s=>`<td style="text-align:center">${sym(s)}</td>`).join('')}
+        <td style="font-size:11px;color:var(--sub)">${esc(r.note)}</td></tr>`).join('')+
+      '</tbody></table></div>'+src('03_호환성_Matrix'),
+      fu:['AIX에 '+prod+' 되나?', prod+' 자산 현황']};
+  }
+
+  /* 표준 스택 */
+  if(it==='stack' && os){
+    const rows = STD.filter(s=>s.fam===os);
+    const mine = A.filter(a=>a[5]===os);
+    return {html:`<h4>${esc(os)} 기반 표준 스택</h4>
+      운영 자산 ${mine.length}건 · 준수율 ${pct(mine.filter(r=>r[17]==='표준준수').length, mine.length)}%
+      <div class="tw"><table><thead><tr><th>계층</th><th>제품</th><th>표준버전</th><th>하한(≥)</th><th>JDK</th></tr></thead><tbody>`+
+      rows.map(s=>`<tr><td><span class="bd bd-n">${esc(s.layer)}</span></td>
+        <td>${esc(s.prod)}</td><td class="v-s">${esc(s.std)||'—'}</td>
+        <td class="v-">${esc(s.floor)||'—'}</td><td class="v-">${esc(s.jdk)||'—'}</td></tr>`).join('')+
+      '</tbody></table></div>'+src('01_표준_권고버전마스터'),
+      fu:[os+' 자산 현황', os+' 전환대상']};
+  }
+
+  /* 전환 경로 */
+  if(it==='transition'){
+    let rows = A.filter(r=>r[17]==='전환대상');
+    if(prod) rows = rows.filter(r=>r[8]===prod);
+    if(os)   rows = rows.filter(r=>r[5]===os);
+    if(!rows.length) return {html:'<h4>전환 대상</h4>해당 조건의 전환대상 자산이 없습니다.', fu:['전환대상 전체']};
+    const el = prod ? EOL.filter(e=>e.canon===prod) : [];
+    let h = `<h4>전환 대상 ${prod?'· '+esc(prod):''}</h4><b>${rows.length}건</b>`;
+    if(el.length) h += `<div class="tw" style="margin-top:8px"><table><thead><tr>
+      <th>버전</th><th>EOS</th><th>전환 권고</th></tr></thead><tbody>`+
+      el.map(e=>`<tr><td class="v-">${esc(e.ver)}</td><td class="v-">${esc(e.eos)}</td>
+        <td>${esc(e.action)}</td></tr>`).join('')+'</tbody></table></div>';
+    h += atable(rows.sort((a,b)=>a[18]-b[18]),{lim:12})+src('02_자산RAWDATA · 05_EOL');
+    return {html:h, fu:[(prod||'')+' 호환성', '전환 우선순위']};
+  }
+
+  /* 기본: 표준 버전 */
+  if(prod){
+    let rows = STD.filter(s=>s.canon===prod);
+    if(os) rows = rows.filter(s=>s.fam===os);
+    if(!rows.length) return {html:`<h4>${esc(prod)}</h4>표준 마스터에 등록되지 않은 제품입니다.
+      필수SW·사내 제품은 <b>검증 경로 B</b>(담당자 수동검색) 대상일 수 있습니다.`,
+      fu:['필수SW 목록','Tomcat 표준버전']};
+    const ms = A.filter(r=>r[8]===prod && (!os||r[5]===os));
+    return {html:`<h4>${esc(prod)} 표준버전</h4>
+      <div class="tw"><table><thead><tr><th>OS 기반</th><th>표준 지정</th><th>하한(≥)</th>
+      <th>JDK</th><th>EOS</th></tr></thead><tbody>`+
+      rows.map(s=>`<tr><td><span class="bd bd-b">${esc(s.fam)}</span></td>
+        <td class="v-s">${esc(s.std)||'—'}</td><td class="v-">${esc(s.floor)||'—'}</td>
+        <td class="v-">${esc(s.jdk)||'—'}</td><td class="v-">${esc(s.eos)||'—'}</td></tr>`).join('')+
+      `</tbody></table></div>
+      ${rows[0].note?`<div class="note">${esc(rows[0].note)}</div>`:''}
+      ${ms.length?`<div class="note">운영 자산 <b>${ms.length}건</b> · 준수율 ${pct(ms.filter(r=>r[17]==='표준준수').length, ms.length)}%</div>`:''}`+
+      src('01_표준_권고버전마스터'),
+      fu:[prod+' 자산 현황', prod+' 호환성', prod+' EOS']};
+  }
+
+  return {html:`<h4>무엇을 찾으시나요</h4>
+    제품명·OS를 넣어 질문하시면 표준버전·호환성·JDK·EOS·자산 현황을 찾아드립니다.
+    <div class="note">예 · "AIX에 Tomcat 되나?" · "WebSphere 몇 대?" · "Oracle EOS 언제?" · "RHEL 표준 스택"</div>`,
+    fu:['AIX 표준 스택','전환 우선순위','권고역전 현황']};
+}
+
+/* ── 챗봇 UI ── */
+const CATS = [
+  ['표준 · 스택', ['AIX 표준 스택','Linux Oracle 표준버전','Windows WAS 표준']],
+  ['호환성',      ['RHEL 8에 Oracle 19c 가능?','AIX 7.1에 Tomcat 되나?','WebSphere 호환성']],
+  ['JDK',         ['Tomcat 10.1 JDK','WebSphere JDK','JDK 6 쓰는 서버']],
+  ['EOS · 전환',  ['Oracle 11g EOS','Tomcat 8.5 전환','AIX EOS 언제?']],
+  ['자산',        ['Tomcat 몇 대?','AIX 자산 현황','전환 우선순위','권고역전 현황']],
+];
+
+function rChat(){
+  let side = '';
+  CATS.forEach(c=>{
+    side += `<div class="cb-cat">${esc(c[0])}</div>`;
+    c[1].forEach(q=>side += `<button class="chip">${esc(q)}</button>`);
+  });
+  $('#tab-chat').innerHTML = `<div class="cb">
+    <div class="cb-side">${side}</div>
+    <div class="cb-main">
+      <div class="cb-bar">
+        <span class="cb-hint">제품명 · OS를 넣어 질문하십시오</span>
+        <button class="btn" id="cbcopy">대화 복사</button>
+        <button class="btn" id="cbclear">초기화</button>
+      </div>
+      <div class="cb-st" id="cbs"></div>
+      <div class="cb-in">
+        <input id="cbi" placeholder="예: AIX에 Tomcat 되나? · WebSphere 몇 대?" autocomplete="off">
+        <button id="cbb">질의</button>
+      </div>
+    </div></div>`;
+  $('#tab-chat').querySelectorAll('.chip').forEach(b=>b.onclick=()=>ask(b.textContent));
+  $('#cbb').onclick = send;
+  $('#cbclear').onclick = ()=>{ $('#cbs').innerHTML=''; intro(); $('#cbi').focus(); };
+  $('#cbcopy').onclick = ()=>{
+    const lines = [...document.querySelectorAll('#cbs .msg')].map(m=>
+      (m.classList.contains('me') ? '[질문] ' : '[답변] ') + m.innerText.trim()).join('\n\n');
+    const done = ()=>{ const b=$('#cbcopy'); const o=b.textContent;
+      b.textContent='복사됨'; setTimeout(()=>b.textContent=o, 1400); };
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(lines).then(done, fallback);
+    } else fallback();
+    function fallback(){
+      const ta=document.createElement('textarea'); ta.value=lines;
+      ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); done(); }catch(e){}
+      ta.remove();
+    }
+  };
+  $('#cbi').addEventListener('keydown', e=>{ if(e.key==='Enter') send(); });
+  intro();
+}
+function intro(){
+  botMsg(`<h4>표준화 질의 챗봇</h4>
+    표준버전 · 호환성 · JDK 요구 · EOS · 자산 현황을 자연어로 조회할 수 있습니다.
+    자산 답변의 행을 클릭하면 상세가 열립니다.
+    <div class="note">데이터 · 자산 ${A.length}건 · 표준 ${STD.length}행 · 호환성 ${CMP.length}행 (내장, 외부 통신 없음)</div>`);
+}
+function meMsg(t){
+  const d = document.createElement('div');
+  d.className = 'msg me'; d.textContent = t;
+  $('#cbs').appendChild(d); $('#cbs').scrollTop = 1e9;
+}
+function botMsg(h){
+  const d = document.createElement('div');
+  d.className = 'msg bot'; d.innerHTML = h;
+  $('#cbs').appendChild(d); $('#cbs').scrollTop = 1e9;
+  bindRows(d);
+  return d;
+}
+function ask(q){
+  meMsg(q);
+  const r = answer(q);
+  let h = r.html;
+  if(r.fu && r.fu.length) h += '<div class="fu">' +
+    r.fu.filter(Boolean).map(f=>`<button>${esc(f)}</button>`).join('') + '</div>';
+  const el = botMsg(h);
+  el.querySelectorAll('.fu button').forEach(b=>b.onclick=()=>ask(b.textContent));
+}
+function send(){
+  const i = $('#cbi'), v = i.value.trim();
+  if(!v) return;
+  i.value = ''; ask(v);
+}
+
+/* ══════════ 라우팅 ══════════ */
+const R = {dash:rDash, std:rStd, mtx:rMtx, jdk:rJdk, sw:rSw, asset:rAsset,
+           patch:rPatch, verify:rVerify, chat:rChat, data:rData};
+const done = {};
+function show(tab, fromDrill){
+  if(!R[tab]) tab = 'dash';
+  document.querySelectorAll('.tabs button').forEach(b=>{
+    const on = b.dataset.t===tab;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('.tab').forEach(s=>s.classList.toggle('on', s.id==='tab-'+tab));
+  if(!done[tab]){ R[tab](); done[tab]=true; }
+  else if(tab==='asset' && fromDrill && rAsset.apply2) rAsset.apply2();
+  if(location.hash.slice(1) !== tab) history.replaceState(null,'','#'+tab);
+  window.scrollTo({top:0, behavior:'instant'});
+}
+$('#tabs').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(b) show(b.dataset.t);
+});
+/* 키보드 화살표 탭 이동 */
+$('#tabs').addEventListener('keydown', e=>{
+  if(e.key!=='ArrowRight' && e.key!=='ArrowLeft') return;
+  const bs = [...document.querySelectorAll('.tabs button')];
+  const i = bs.findIndex(b=>b.classList.contains('on'));
+  const n = (i + (e.key==='ArrowRight'?1:-1) + bs.length) % bs.length;
+  bs[n].focus(); show(bs[n].dataset.t);
+  e.preventDefault();
+});
+window.addEventListener('hashchange', ()=>show(location.hash.slice(1)||'dash'));
+
+/* 저장된 데이터가 있으면 복원 — 단, 배포본이 바뀌었으면 새 데이터 우선 */
+function boot(){
+  const saved = loadLocal();
+  let stale = null;
+  if(saved && saved.assets && saved.std){
+    if(saved.meta && saved.meta.baseBuilt && saved.meta.baseBuilt !== EMBEDDED.meta.built){
+      /* HTML 이 새 배포본으로 교체됨 → 내장 데이터를 씁니다 */
+      stale = saved;
+    } else {
+      DATA = saved;
+      rebindData();
+    }
+  }
+  if(stale){
+    const bn = $('#banner');
+    bn.hidden = false;
+    bn.innerHTML = `<b>새 배포본이 적용되었습니다.</b>
+      이 PC에 남아있던 이전 수정 내용(${stale.assets.length}건 · ${esc(stale.meta.built||'')})은
+      사용하지 않습니다.<span class="sp"></span>
+      <button class="btn" id="bnKeep">이전 수정 내용 쓰기</button>
+      <button class="btn" id="bnDrop">이전 내용 지우기</button>`;
+    $('#bnKeep').onclick = ()=>{
+      DATA = stale; rebindData();
+      Object.keys(done).forEach(k=>delete done[k]);
+      show(document.querySelector('.tabs button.on').dataset.t);
+      bn.hidden = true;
+      toast('이전 수정 내용으로 되돌렸습니다');
+    };
+    $('#bnDrop').onclick = ()=>{ clearLocal(); bn.hidden = true; toast('이전 내용을 지웠습니다'); };
+  }
+  $('#tmeta').innerHTML =
+    `${esc(DATA.meta.docno)}<br>자산 ${DATA.meta.nAsset}건 · ${esc(DATA.meta.built)}`
+    + (DATA.meta.edited ? ' <span style="color:#FFD9A0">· 수정됨</span>' : '');
+  show(location.hash.slice(1) || 'dash');
+  applyRole();
+}
+
+/* 로그인 게이트를 먼저 통과해야 화면을 그립니다 */
+if(initAuth()) boot();
+else {
+  /* 로그인 성공 시 1회 렌더 */
+  const _ar = applyRole;
+  applyRole = function(){ _ar(); if(!boot._done){ boot._done = true; boot(); } };
+}
+
+</script>
+</body></html>

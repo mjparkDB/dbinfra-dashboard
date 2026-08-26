@@ -1,0 +1,255 @@
+<script>
+/* ══════════════════════════════════════════════
+   로그인 게이트 · 역할 기반 기능 제한
+
+   이 게이트는 역할 분리를 위한 것입니다.
+   HTML 파일을 텍스트로 열면 데이터가 보이므로 데이터 보호 수단이 아닙니다.
+   실제 보호가 필요하면 서버 앞단(nginx Basic 인증·사내 SSO)에 두십시오.
+   ══════════════════════════════════════════════ */
+const AUTH = __AUTH__;
+const ENC  = __ENC__;      /* 봉투 암호화 배포본이면 여기에 암호문이 들어옵니다 */
+const SESKEY = 'its_portal_session';
+
+const ROLE_LABEL = { viewer:'조회자', editor:'편집자', admin:'관리자' };
+const ROLE_RANK  = { viewer:1, editor:2, admin:3 };
+
+let ME = null;   /* {id, name, role} — 로그인 안 했으면 null */
+
+/* 권한 확인 — 로그인이 꺼져 있으면 전부 허용 */
+function can(need){
+  if(!AUTH || !AUTH.enabled) return true;
+  if(!ME) return false;
+  return (ROLE_RANK[ME.role]||0) >= (ROLE_RANK[need]||9);
+}
+
+/* ── 해시 ── */
+function hex2buf(h){ return new Uint8Array(h.match(/../g).map(x=>parseInt(x,16))); }
+function buf2hex(b){ return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+
+async function pbkdf2(pw, saltHex, iters){
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(pw), {name:'PBKDF2'}, false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    {name:'PBKDF2', salt:hex2buf(saltHex), iterations:iters, hash:'SHA-256'}, key, 256);
+  return buf2hex(bits);
+}
+/* 타이밍 차이를 줄이기 위한 상수시간 비교 */
+function eq(a, b){
+  if(a.length !== b.length) return false;
+  let d = 0;
+  for(let i=0;i<a.length;i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+
+/* ── 봉투 복호 (암호화 배포본 전용) ── */
+const b64buf = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
+
+async function gcmOpen(keyBytes, nonceHex, ctB64){
+  const key = await crypto.subtle.importKey('raw', keyBytes, {name:'AES-GCM'}, false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt(
+    {name:'AES-GCM', iv:hex2buf(nonceHex)}, key, b64buf(ctB64));
+  return new Uint8Array(pt);
+}
+
+/* 비밀번호로 데이터키를 풀고 자산 데이터를 복호합니다.
+   실패하면 예외 — 비밀번호가 틀린 것과 같습니다. */
+async function unlock(u, pw){
+  const kekBits = await crypto.subtle.deriveBits(
+    {name:'PBKDF2', salt:hex2buf(u.salt), iterations:ENC.iter, hash:'SHA-256'},
+    await crypto.subtle.importKey('raw', new TextEncoder().encode(pw),
+      {name:'PBKDF2'}, false, ['deriveBits']), 256);
+  const K  = await gcmOpen(new Uint8Array(kekBits), u.n, u.wk);   /* 데이터키 언랩 */
+  const pt = await gcmOpen(K, ENC.p.n, ENC.p.c);                  /* 자산 데이터 복호 */
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+/* ── 세션 ── */
+function saveSession(u, keep){
+  const s = JSON.stringify({id:u.id, name:u.name, role:u.role, t:Date.now()});
+  try{
+    sessionStorage.setItem(SESKEY, s);
+    if(keep) localStorage.setItem(SESKEY, s);
+    else localStorage.removeItem(SESKEY);
+  }catch(e){}
+}
+function loadSession(){
+  if(ENC) return null;      /* 암호화본은 매번 비밀번호가 필요합니다 */
+  try{
+    const s = sessionStorage.getItem(SESKEY) || localStorage.getItem(SESKEY);
+    if(!s) return null;
+    const o = JSON.parse(s);
+    /* localStorage 로 유지한 세션은 12시간 */
+    if(!sessionStorage.getItem(SESKEY) && Date.now() - (o.t||0) > 12*3600*1000){
+      localStorage.removeItem(SESKEY);
+      return null;
+    }
+    const u = (AUTH.users||[]).find(x=>x.id===o.id);
+    return u ? {id:u.id, name:u.name, role:u.role} : null;
+  }catch(e){ return null; }
+}
+function clearSession(){
+  try{ sessionStorage.removeItem(SESKEY); localStorage.removeItem(SESKEY); }catch(e){}
+}
+
+/* 데모 안내 — auth.demo.json 으로 빌드했을 때만 표시 */
+function userList(){ return ENC ? (ENC.u||[]) : (AUTH.users||[]); }
+
+function demoHint(){
+  const rows = (AUTH.hints||[]).map(h=>
+    `<button type="button" class="demo-row" data-demo="${h[0]}|${h[1]}">
+       <span class="demo-id">${h[0]}</span>
+       <span class="demo-d">${h[2]}</span></button>`).join('');
+  return `<div class="gate-demo">
+    <div class="demo-t">데모 계정 · 눌러서 바로 로그인</div>
+    ${rows}
+    <div class="demo-n">공개 데모입니다. 자산 데이터는 <b>가공된 샘플</b>이며
+      실제 시스템과 무관합니다. 비밀번호는 아이디와 같습니다.</div>
+  </div>`;
+}
+
+/* ── 로그인 화면 ── */
+function showLogin(){
+  const el = document.getElementById('gate');
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="gate-box">
+      <div class="gate-brand">인프라 표준화 포털</div>
+      <div class="gate-sub">인프라운영파트 · ITS-VER 2026</div>
+      <label class="gate-f"><span>아이디</span>
+        <input id="gid" autocomplete="username" autocapitalize="off" spellcheck="false"></label>
+      <label class="gate-f"><span>비밀번호</span>
+        <input id="gpw" type="password" autocomplete="current-password"></label>
+      ${ENC ? '<input type="checkbox" id="gkeep" class="vh" tabindex="-1" aria-hidden="true">'
+            : `<label class="gate-keep"><input type="checkbox" id="gkeep">
+                <span>이 브라우저에서 12시간 유지</span></label>`}
+      <button class="gate-btn" id="gbtn">로그인</button>
+      <div class="gate-msg" id="gmsg" role="status" aria-live="polite"></div>
+      ${AUTH.demo ? demoHint() : `<div class="gate-note">${ENC
+        ? '자산 데이터가 <b>AES-256-GCM 으로 암호화</b>되어 있습니다. 로그인해야 복호됩니다.'
+        : '이 로그인은 <b>역할 분리</b>를 위한 것입니다. 파일 자체의 보호가 필요하면 서버 인증을 사용하십시오.'}</div>`}
+    </div>`;
+
+  /* 데모 계정 한 번에 채우기 */
+  el.querySelectorAll('[data-demo]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const p = btn.dataset.demo.split('|');
+      document.getElementById('gid').value = p[0];
+      document.getElementById('gpw').value = p[1];
+      doLogin();
+    };
+  });
+
+  const go = ()=>doLogin();
+  document.getElementById('gbtn').onclick = go;
+  ['gid','gpw'].forEach(id=>{
+    document.getElementById(id).addEventListener('keydown', e=>{
+      if(e.key==='Enter') go();
+    });
+  });
+  setTimeout(()=>document.getElementById('gid').focus(), 60);
+}
+
+let _tries = 0, _lock = 0;
+
+async function doLogin(){
+  const msg = document.getElementById('gmsg');
+  const btn = document.getElementById('gbtn');
+  const now = Date.now();
+  if(now < _lock){
+    msg.textContent = `잠시 후 다시 시도하십시오 (${Math.ceil((_lock-now)/1000)}초)`;
+    return;
+  }
+  const id = (document.getElementById('gid').value||'').trim();
+  const pw = document.getElementById('gpw').value || '';
+  if(!id || !pw){ msg.textContent = '아이디와 비밀번호를 입력하십시오.'; return; }
+
+  btn.disabled = true;
+  msg.textContent = '확인 중…';
+  try{
+    let okUser = null;
+
+    if(ENC){
+      /* 암호화본 — 복호에 성공하면 곧 인증입니다 */
+      const eu = (ENC.u||[]).find(x=>x.id===id);
+      if(eu){
+        msg.textContent = '복호 중…';
+        try{
+          const data = await unlock(eu, pw);
+          DATA = data; rebindData();
+          okUser = {id:eu.id, name:eu.name, role:eu.role};
+        }catch(_){ okUser = null; }
+      }else{
+        /* 계정이 없어도 같은 시간을 쓰도록 */
+        await pbkdf2(pw, '00'.repeat(16), ENC.iter);
+      }
+    }else{
+      const u = (AUTH.users||[]).find(x=>x.id===id);
+      const salt = u ? u.salt : '00'.repeat(16);
+      const h = await pbkdf2(pw, salt, AUTH.iterations || 200000);
+      if(u && eq(h, u.hash)) okUser = {id:u.id, name:u.name, role:u.role};
+    }
+
+    if(okUser){
+      ME = okUser;
+      const keep = document.getElementById('gkeep');
+      saveSession(ME, !!(keep && keep.checked));
+      const g = document.getElementById('gate');
+      g.hidden = true; g.innerHTML = '';
+      applyRole();
+      _tries = 0;
+    }else{
+      _tries++;
+      msg.textContent = '아이디 또는 비밀번호가 올바르지 않습니다.';
+      document.getElementById('gpw').value = '';
+      if(_tries >= 5){
+        _lock = Date.now() + 30000;
+        _tries = 0;
+        msg.textContent = '시도가 많습니다. 30초 후 다시 시도하십시오.';
+      }
+    }
+  }catch(e){
+    msg.textContent = '오류 · ' + e.message;
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+function doLogout(){
+  clearSession();
+  ME = null;
+  location.reload();
+}
+
+/* ── 역할에 따라 화면 조정 ── */
+function applyRole(){
+  const who = document.getElementById('who');
+  if(AUTH && AUTH.enabled && ME){
+    who.hidden = false;
+    who.innerHTML = `<span class="who-n">${esc(ME.name||ME.id)}</span>
+      <span class="who-r">${esc(ROLE_LABEL[ME.role]||ME.role)}</span>
+      <button class="who-out" id="lgout">로그아웃</button>`;
+    document.getElementById('lgout').onclick = doLogout;
+  }else{
+    who.hidden = true;
+  }
+  /* 데이터 관리 탭 — 관리자 전용 */
+  const dataTab = document.querySelector('.tabs button[data-t="data"]');
+  if(dataTab) dataTab.hidden = !can('admin');
+  const cur = document.querySelector('.tabs button.on');
+  if(cur && cur.hidden) show('dash');
+}
+
+/* ── 초기화 ── */
+function initAuth(){
+  if(ENC){ showLogin(); return false; }      /* 암호화본 — 반드시 로그인 */
+  if(!AUTH || !AUTH.enabled || !(AUTH.users||[]).length){
+    document.getElementById('gate').hidden = true;
+    applyRole();
+    return true;      /* 로그인 없이 진행 */
+  }
+  ME = loadSession();
+  if(ME){ applyRole(); return true; }
+  showLogin();
+  return false;
+}
+</script>

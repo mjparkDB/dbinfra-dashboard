@@ -1,0 +1,327 @@
+<script>
+/* ══════════════════════════════════════════════
+   데이터 관리 — 엑셀 업로드 · 편집 · 내보내기 · 초기화
+   ══════════════════════════════════════════════ */
+const LSKEY = 'its_portal_data_v2';
+
+function saveLocal(){
+  try{
+    /* 어느 배포본 위에서 수정했는지 기록 — HTML 교체 감지용 */
+    DATA.meta.baseBuilt = EMBEDDED.meta.built;
+    localStorage.setItem(LSKEY, JSON.stringify(DATA));
+    return true;
+  }catch(e){ return false; }
+}
+function loadLocal(){
+  try{
+    const s = localStorage.getItem(LSKEY);
+    return s ? JSON.parse(s) : null;
+  }catch(e){ return null; }
+}
+function clearLocal(){
+  try{ localStorage.removeItem(LSKEY); }catch(e){}
+}
+
+/* 데이터 교체 후 전체 재렌더 */
+function swapData(nd, msg){
+  DATA = nd;
+  rebindData();
+  Object.keys(done).forEach(k=>delete done[k]);
+  const cur = document.querySelector('.tabs button.on');
+  show(cur ? cur.dataset.t : 'dash');
+  $('#tmeta').innerHTML =
+    `${esc(DATA.meta.docno)}<br>자산 ${DATA.meta.nAsset}건 · ${esc(DATA.meta.built)}`
+    + (DATA.meta.edited ? ' <span style="color:#FFD9A0">· 수정됨</span>' : '');
+  if(msg) toast(msg);
+}
+
+let _tt;
+function toast(m, bad){
+  let el = $('#toast');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'toast'; document.body.appendChild(el);
+  }
+  el.className = 'toast on' + (bad ? ' bad' : '');
+  el.textContent = m;
+  clearTimeout(_tt);
+  _tt = setTimeout(()=>el.className='toast', 3200);
+}
+
+/* ══════════════════════════════════════════
+   배포용 HTML 저장 — 현재 데이터를 파일에 굽습니다.
+   이 파일을 공유폴더에 덮어쓰면 모두가 같은 데이터를 봅니다.
+   ══════════════════════════════════════════ */
+function exportHTML(){
+  const root = document.documentElement.cloneNode(true);
+
+  /* 데이터 교체 */
+  const ds = root.querySelector('#itsData');
+  if(!ds) throw new Error('데이터 스크립트를 찾지 못했습니다');
+  const out = JSON.parse(JSON.stringify(DATA));
+  delete out.meta.edited;
+  out.meta.src = DATA.meta.src || '배포본';
+  ds.textContent = `\nconst EMBEDDED = ${JSON.stringify(out)};\nlet DATA = EMBEDDED;\n`;
+
+  /* 렌더된 화면·임시 요소 비우기 (열 때 새로 그려짐) */
+  root.querySelectorAll('.tab').forEach(t=>{ t.innerHTML=''; t.classList.remove('on'); });
+  const d0 = root.querySelector('#tab-dash'); if(d0) d0.classList.add('on');
+  root.querySelectorAll('.tabs button').forEach((b,i)=>b.classList.toggle('on', i===0));
+  const ov = root.querySelector('#ov');
+  if(ov){ ov.classList.remove('on'); const ob=root.querySelector('#ovb'); if(ob) ob.innerHTML=''; }
+  const tm = root.querySelector('#tmeta'); if(tm) tm.innerHTML='';
+  const bn = root.querySelector('#banner'); if(bn){ bn.innerHTML=''; bn.hidden=true; }
+  const ts = root.querySelector('#toast'); if(ts) ts.remove();
+
+  const html = '<!DOCTYPE html>\n' + root.outerHTML;
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ITS_Portal_${stamp()}.html`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  return a.download;
+}
+
+/* ══════════ 데이터 탭 ══════════ */
+function rData(){
+  const hasLocal = !!loadLocal();
+  let h = `<div class="info"><b>Python 없이 이 화면에서 갱신할 수 있습니다.</b>
+    엑셀 마스터파일을 올리면 브라우저가 직접 읽어 대시보드를 다시 만듭니다.
+    수정 내용은 이 브라우저에 저장되며, 엑셀로 다시 내보낼 수 있습니다.</div>`;
+
+  h += `<div class="grid2">
+    <div class="card"><h3>① 엑셀 마스터파일 올리기</h3>
+      <div id="drop" class="drop">
+        <div class="drop-i">＋</div>
+        <div><b>파일을 여기에 끌어놓기</b></div>
+        <div class="drop-s">또는 클릭해서 선택 · .xlsx</div>
+        <input type="file" id="fin" accept=".xlsx,.xlsm" class="vh" aria-label="엑셀 마스터파일 선택">
+      </div>
+      <div id="fmsg" class="note"></div>
+      <div class="note">필요한 시트 · <span class="v-">01_표준_권고버전마스터 · 02_자산RAWDATA_통합 ·
+        03_호환성_Matrix · 04_WAS_WEB_JDK요구 · 05_EOL_전환참고 · 07_필수SW_OS별버전</span></div>
+    </div>
+
+    <div class="card"><h3>② 현재 데이터</h3>
+      <dl class="dl">
+        <dt>출처</dt><dd>${esc(DATA.meta.src||'내장')}</dd>
+        <dt>기준 시각</dt><dd class="v-">${esc(DATA.meta.built||'—')}</dd>
+        <dt>자산</dt><dd class="v-">${DATA.assets.length}건</dd>
+        <dt>표준</dt><dd class="v-">${DATA.std.length}행</dd>
+        <dt>호환성</dt><dd class="v-">${DATA.compat.length}행</dd>
+        <dt>브라우저 저장</dt><dd>${hasLocal
+          ? '<span class="bd bd-g">저장됨</span> 새로고침해도 유지됩니다'
+          : '<span class="bd bd-n">미저장</span> 내장 데이터를 쓰는 중입니다'}</dd>
+      </dl>
+      <div class="tb" style="margin-top:13px">
+        <button class="btn" id="dhtml"
+          style="background:var(--g);color:#fff;border-color:var(--g)">배포용 HTML 저장</button>
+        <button class="btn" id="dxlsx">엑셀로 내보내기</button>
+        <button class="btn" id="djson">백업(JSON)</button>
+        <button class="btn" id="dload">백업 불러오기</button>
+        <input type="file" id="jin" accept=".json" class="vh" aria-label="백업 파일 선택">
+      </div>
+      <div class="tb">
+        <button class="btn" id="dreset" style="color:var(--r);border-color:#E8C4C7">
+          내장 데이터로 되돌리기</button>
+      </div>
+      <div class="note">엑셀 내보내기는 <b>화면에서 수정한 내용이 반영</b>됩니다.
+        서버명은 비식별 원칙에 따라 공란으로 나갑니다.</div>
+    </div>
+  </div>`;
+
+  h += `<div class="card"><h3>③ 자산 편집</h3>
+    <div class="note" style="margin:0 0 11px">자산 조회 탭에서 행을 열고
+      <b>편집</b>을 누르면 버전·OS·업데이트 가능여부를 고칠 수 있습니다.
+      저장하면 표준 하한 대조와 판정·우선순위가 즉시 다시 계산됩니다.</div>
+    <div class="tw"><table><thead><tr><th>수정 가능</th><th>자동 재계산</th></tr></thead>
+      <tbody>
+        <tr><td>OS · 제품 · 현재버전 · 권고버전 · JDK</td>
+            <td>OS 계열 · 표준 매칭 · 하한 충족/미달</td></tr>
+        <tr><td>EOS 여부 · 업데이트 가능여부 · 사유</td>
+            <td>판정(전환대상/권장/준수) · 우선순위(P1~P4)</td></tr>
+        <tr><td>업무/시스템 · 운영구분 · 이중화</td>
+            <td>권고역전 감지 · 데이터 품질 집계</td></tr>
+      </tbody></table></div></div>`;
+
+  h += `<div class="card"><h3>④ 여러 명과 공유하는 방법</h3>
+    <div class="warn" style="margin-bottom:12px"><b>브라우저 저장은 공유되지 않습니다.</b>
+      화면에서 수정한 값은 그 PC의 브라우저에만 남습니다.
+      공유폴더에 HTML을 두어도 다른 사람 화면에는 반영되지 않습니다.</div>
+    <div class="note" style="margin:0 0 12px">
+      모두가 같은 데이터를 보게 하려면 <b>배포용 HTML 저장</b>을 쓰십시오.
+      현재 데이터가 파일 안에 구워지므로, 받는 사람은 아무 작업 없이 열기만 하면 됩니다.</div>
+    <div class="tw"><table><thead><tr><th style="width:52px">단계</th><th>담당</th><th>할 일</th></tr></thead>
+      <tbody>
+        <tr><td class="v-">1</td><td>담당자</td><td>이 화면에서 <b>엑셀 마스터파일</b>을 올립니다</td></tr>
+        <tr><td class="v-">2</td><td>담당자</td><td>내용을 확인하고 필요하면 자산을 편집합니다</td></tr>
+        <tr><td class="v-">3</td><td>담당자</td><td><b>배포용 HTML 저장</b>을 눌러 파일을 받습니다</td></tr>
+        <tr><td class="v-">4</td><td>담당자</td><td>공유폴더의 기존 HTML에 <b>덮어씁니다</b></td></tr>
+        <tr><td class="v-">5</td><td>구성원</td><td>공유폴더 HTML을 열면 <b>최신 데이터가 바로 보입니다</b></td></tr>
+      </tbody></table></div>
+    <div class="note">HTML을 교체하면 각자 브라우저에 남아있던 이전 수정값은 자동으로 비활성화되고
+      새 데이터가 표시됩니다. 상단에 안내가 뜹니다.</div></div>`;
+
+  h += `<div class="card"><h3>⑤ 폐쇄망 안내</h3>
+    <div class="note" style="margin:0">
+      이 파일은 외부 통신을 하지 않습니다. 엑셀 읽기·쓰기도 브라우저 안에서만 이루어집니다.<br>
+      <b>USB 반입</b> · 이 HTML 파일 하나만 복사하면 어느 PC에서든 바로 열립니다.<br>
+      <b>업로드할 파일</b> · <span class="v-">ITS_Master_v2_1.xlsx</span> 형식의 마스터파일
+      (필요 시트 6개는 위 ① 참고). 자산 원장 <span class="v-">02_자산RAWDATA_통합</span> 시트에
+      행을 추가한 최신본을 올리면 됩니다.
+    </div></div>`;
+
+  $('#tab-data').innerHTML = h;
+
+  /* 업로드 */
+  const drop = $('#drop'), fin = $('#fin');
+  drop.onclick = ()=>fin.click();
+  drop.onkeydown = e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fin.click(); } };
+  drop.tabIndex = 0; drop.setAttribute('role','button');
+  ['dragenter','dragover'].forEach(t=>drop.addEventListener(t, e=>{
+    e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(t=>drop.addEventListener(t, e=>{
+    e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e=>{
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(f) readXlsx(f);
+  });
+  fin.onchange = ()=>{ if(fin.files[0]) readXlsx(fin.files[0]); };
+
+  function readXlsx(file){
+    const msg = $('#fmsg');
+    if(!/\.xlsx?$|\.xlsm$/i.test(file.name)){
+      msg.innerHTML = '<span style="color:var(--r)">xlsx 파일만 열 수 있습니다.</span>';
+      return;
+    }
+    msg.textContent = `${file.name} 읽는 중…`;
+    const fr = new FileReader();
+    fr.onload = ()=>{
+      try{
+        const nd = P.parseWorkbook(new Uint8Array(fr.result));
+        nd.meta.src = file.name;
+        swapData(nd);
+        saveLocal();
+        msg.innerHTML = `<span style="color:var(--g-d)">완료 · 자산 ${nd.assets.length}건 ·
+          표준 ${nd.std.length}행${nd.meta.nDropped?` · 제외 ${nd.meta.nDropped}행`:''}</span>`;
+        toast(`${file.name} 반영 완료 · 자산 ${nd.assets.length}건`);
+      }catch(err){
+        msg.innerHTML = `<span style="color:var(--r)">읽지 못했습니다 · ${esc(err.message)}</span>`;
+        toast('엑셀을 읽지 못했습니다', true);
+      }
+    };
+    fr.onerror = ()=>{ msg.innerHTML = '<span style="color:var(--r)">파일을 읽지 못했습니다.</span>'; };
+    fr.readAsArrayBuffer(file);
+  }
+
+  /* 내보내기 */
+  $('#dhtml').onclick = ()=>{
+    try{
+      const n = exportHTML();
+      toast(`${n} 저장 · 공유폴더에 덮어쓰면 모두가 이 데이터를 봅니다`);
+    }catch(e){ toast('저장 실패 · '+e.message, true); }
+  };
+  $('#dxlsx').onclick = ()=>{
+    try{
+      const wb = P.toWorkbook(DATA);
+      XLSX.writeFile(wb, `인프라표준화_마스터_${stamp()}.xlsx`);
+      toast('엑셀로 내보냈습니다');
+    }catch(e){ toast('내보내기 실패 · '+e.message, true); }
+  };
+  $('#djson').onclick = ()=>{
+    const b = new Blob([JSON.stringify(DATA)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = `포털백업_${stamp()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+    toast('백업 파일을 저장했습니다');
+  };
+  $('#dload').onclick = ()=>$('#jin').click();
+  $('#jin').onchange = ()=>{
+    const f = $('#jin').files[0]; if(!f) return;
+    const fr = new FileReader();
+    fr.onload = ()=>{
+      try{
+        const nd = JSON.parse(fr.result);
+        if(!nd.assets || !nd.std) throw new Error('형식이 맞지 않습니다');
+        swapData(nd); saveLocal();
+        toast('백업을 불러왔습니다');
+      }catch(e){ toast('불러오지 못했습니다 · '+e.message, true); }
+    };
+    fr.readAsText(f);
+  };
+  $('#dreset').onclick = ()=>{
+    if(!confirm('브라우저에 저장된 수정 내용을 지우고 내장 데이터로 되돌립니다.\n계속할까요?')) return;
+    clearLocal();
+    swapData(JSON.parse(JSON.stringify(EMBEDDED)), '내장 데이터로 되돌렸습니다');
+  };
+}
+
+/* ══════════ 자산 편집 ══════════ */
+const EDIT_FIELDS = [
+  ['idx4',  4,  'OS',            'text'],
+  ['idx7',  7,  '제품',          'text'],
+  ['idx10', 10, '현재 버전',     'text'],
+  ['idx11', 11, '권고 버전',     'text'],
+  ['idx9',  9,  'JDK 버전',      'text'],
+  ['idx3',  3,  '업무/시스템',   'text'],
+  ['idx2',  2,  '운영구분',      'text'],
+  ['idx16', 16, '이중화',        'text'],
+  ['idx12', 12, 'EOS 일시',      'text'],
+  ['idx13', 13, 'EOS 여부',      'sel', ['','O','X']],
+  ['idx14', 14, '업데이트 가능', 'sel', ['','가능','불가','불필요','해당없음']],
+  ['idx15', 15, '사유',          'area'],
+];
+
+function openEdit(id){
+  const r = DATA.assets.find(x=>x[0]===id); if(!r) return;
+  let h = `<div class="sec-t">자산 편집 · ${esc(id)}</div>
+    <div class="note" style="margin:0 0 12px">저장하면 표준 대조와 판정·우선순위가 다시 계산됩니다.</div>
+    <div class="egrid">`;
+  EDIT_FIELDS.forEach(f=>{
+    const v = r[f[1]] || '';
+    if(f[3]==='sel'){
+      h += `<label><span>${esc(f[2])}</span>
+        <select data-i="${f[1]}">${f[4].map(o=>
+          `<option value="${esc(o)}"${o===v?' selected':''}>${esc(o||'—')}</option>`).join('')}</select></label>`;
+    } else if(f[3]==='area'){
+      h += `<label class="wide"><span>${esc(f[2])}</span>
+        <textarea data-i="${f[1]}" rows="2">${esc(v)}</textarea></label>`;
+    } else {
+      h += `<label><span>${esc(f[2])}</span>
+        <input data-i="${f[1]}" value="${esc(v)}"></label>`;
+    }
+  });
+  h += `</div>
+    <div class="tb" style="margin-top:14px">
+      <button class="btn" id="esave" style="background:var(--g);color:#fff;border-color:var(--g)">저장</button>
+      <button class="btn" id="ecancel">취소</button>
+      <span class="ct" id="emsg"></span>
+    </div>`;
+  $('#ovt').textContent = id + ' 편집';
+  $('#ovb').innerHTML = h;
+  $('#ov').classList.add('on');
+
+  $('#ecancel').onclick = ()=>openAsset(id);
+  $('#esave').onclick = ()=>{
+    $('#ovb').querySelectorAll('[data-i]').forEach(el=>{
+      r[+el.dataset.i] = el.value.trim();
+    });
+    P.recalc(r, DATA.std);
+    P.reaggregate(DATA);
+    DATA.meta.edited = true;
+    const ok = saveLocal();
+    Object.keys(done).forEach(k=>delete done[k]);
+    const cur = document.querySelector('.tabs button.on');
+    show(cur ? cur.dataset.t : 'asset');
+    $('#tmeta').innerHTML =
+      `${esc(DATA.meta.docno)}<br>자산 ${DATA.meta.nAsset}건 · ${esc(DATA.meta.built)}`
+      + ' <span style="color:#FFD9A0">· 수정됨</span>';
+    openAsset(id);
+    toast(ok ? `${id} 저장 · 판정 ${r[17]} (P${r[18]})`
+             : `${id} 반영 · 브라우저 저장 실패(화면에만 적용)`, !ok);
+  };
+}
+</script>

@@ -1,0 +1,355 @@
+<script>
+/* ══════════════════════════════════════════════
+   엑셀 → 포털 데이터 (브라우저 파서)
+   extract.py + build_data.py 를 그대로 이식.
+   Python 없이 폐쇄망에서 엑셀만으로 갱신할 수 있습니다.
+   ══════════════════════════════════════════════ */
+const P = (function(){
+
+const NULLS = new Set(['-','–','—','#N/A','N/A','None','nan','']);
+function S(v){
+  if(v===null || v===undefined) return '';
+  const s = String(v).replace(/\s+/g,' ').trim();
+  return NULLS.has(s) ? '' : s;
+}
+/* 병합셀 전방 채움 */
+function ffill(rows, cols){
+  const last = {};
+  cols.forEach(c=>last[c]='');
+  return rows.map(r=>{
+    r = r.slice();
+    cols.forEach(c=>{
+      if(S(r[c])) last[c] = S(r[c]);
+      else r[c] = last[c];
+    });
+    return r;
+  });
+}
+
+/* ── 버전 비교 ── */
+const VER_RE = /^\d+(?:\.\d+){1,5}$/;
+function cleanVer(v){
+  if(!v) return null;
+  let s = String(v).trim();
+  if(s.includes(',') || s.includes('/')) return null;
+  s = s.replace(/\s*\(.*?\)\s*/g,'').trim();
+  if(!VER_RE.test(s)) return null;
+  if(/^[0.]+$/.test(s.replace(/\./g,''))) return null;
+  return s;
+}
+function vparts(v){
+  const s = cleanVer(v);
+  return s ? s.split('.').slice(0,6).map(Number) : null;
+}
+function vcmp(a,b){
+  let pa = vparts(a), pb = vparts(b);
+  if(!pa || !pb) return null;
+  const n = Math.max(pa.length, pb.length);
+  while(pa.length<n) pa.push(0);
+  while(pb.length<n) pb.push(0);
+  for(let i=0;i<n;i++){ if(pa[i]!==pb[i]) return pa[i]>pb[i] ? 1 : -1; }
+  return 0;
+}
+function sameLine(a,b){
+  const pa = vparts(a), pb = vparts(b);
+  if(!pa || !pb) return false;
+  return pa[0]===pb[0] && pa[1]===pb[1];
+}
+
+/* ── OS 판별 ── */
+function osFamily(os){
+  const s = (os||'').toLowerCase();
+  if(s.includes('aix')) return 'AIX';
+  if(/windows|win20|win 20/.test(s)) return 'Windows';
+  if(/redhat|red hat|rhel|centos|rocky|oracle linux|ubuntu|linux|suse/.test(s)) return 'Linux';
+  if(/esxi|vmware/.test(s)) return '가상화';
+  if(!s.trim()) return '미기재';
+  return '기타';
+}
+function osShort(os){
+  const s = (os||'').trim();
+  if(!s) return '';
+  const fam = osFamily(s), low = s.toLowerCase();
+  const m = s.match(/(\d+\.\d+)/);
+  if(fam==='AIX')     return m ? 'AIX '+m[1] : 'AIX';
+  if(fam==='Windows'){
+    const y = s.match(/(2008|2012|2016|2019|2022|2025)/);
+    return y ? 'Windows '+y[1]+(low.includes('r2')?' R2':'') : 'Windows';
+  }
+  if(fam==='Linux'){
+    const v = m ? m[1] : '';
+    if(low.includes('centos')) return ('CentOS '+v).trim();
+    if(low.includes('rocky'))  return ('Rocky '+v).trim();
+    if(low.includes('oracle linux')) return ('OL '+v).trim();
+    if(low.includes('ubuntu')) return ('Ubuntu '+v).trim();
+    return ('RHEL '+v).trim();
+  }
+  return s.slice(0,22);
+}
+
+/* ── 제품명 정규화 ── */
+const CANON = [
+  [/oracle\s*\(?(enterprise|standard)/, 'Oracle Database'],
+  [/^oracle\b(?!.*linux)/,              'Oracle Database'],
+  [/ms-?\s*sql|sql\s*server/,           'MS SQL Server'],
+  [/postgres/,                          'PostgreSQL'],
+  [/maria/,                             'MariaDB'],
+  [/\bmysql\b/,                         'MySQL'],
+  [/hana/,                              'SAP HANA'],
+  [/tibero/,                            'Tibero'],
+  [/tomcat/,                            'Apache Tomcat'],
+  [/websphere|^was\b/,                  'IBM WebSphere'],
+  [/\bihs\b|ibm http/,                  'IBM HTTP Server (IHS)'],
+  [/jeus/,                              'TmaxSoft JEUS'],
+  [/webtob/,                            'TmaxSoft WebtoB'],
+  [/lena\s*was/,                        'LENA WAS (LG CNS)'],
+  [/lena\s*web/,                        'LENA WEB (LG CNS)'],
+  [/jboss/,                             'Red Hat JBoss EAP'],
+  [/weblogic/,                          'Oracle WebLogic'],
+  [/nginx/,                             'Nginx'],
+  [/\biis\b/,                           'Microsoft IIS'],
+  [/apache/,                            'Apache HTTP Server'],
+  [/mosquit/,                           'Mosquitto (MQTT)'],
+  [/odm|decision manager/,              'IBM ODM'],
+];
+function canon(name){
+  const s = (name||'').trim().toLowerCase();
+  if(!s) return '';
+  for(const [re,out] of CANON) if(re.test(s)) return out;
+  return (name||'').trim();
+}
+function baseFamily(b){
+  const s = (b||'').toLowerCase();
+  if(s.includes('aix')) return 'AIX';
+  if(s.includes('windows')) return 'Windows';
+  if(s.includes('linux')) return 'Linux';
+  return b;
+}
+
+/* ── 판정 ── */
+function verdict(eos, upd){
+  if((eos||'').toUpperCase()==='O') return '전환대상';
+  const u = upd||'';
+  if(u.startsWith('불가')) return '전환대상';
+  if(u.startsWith('가능')) return '전환권장';
+  if(['불필요','해당없음',''].includes(u)) return '표준준수';
+  return '검토';
+}
+function prio(v, eos, reason){
+  if(v!=='전환대상') return v==='전환권장' ? 3 : 4;
+  if((eos||'').toUpperCase()==='O' || (reason||'').toUpperCase().includes('EOL')) return 1;
+  return 2;
+}
+
+const COMPAT_COLS = ['AIX 7.1','AIX 7.2','Linux 8.x','Linux 9.x','Win 2019','Win 2022'];
+
+/* ── 시트 → 행배열 ── */
+function rowsOf(wb, name, from){
+  const ws = wb.Sheets[name];
+  if(!ws) throw new Error(`시트 '${name}' 를 찾을 수 없습니다.`);
+  const all = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:null, blankrows:true});
+  return all.slice(from-1);
+}
+
+/* ══════════ 메인 파서 ══════════ */
+function parseWorkbook(buf){
+  const wb = XLSX.read(buf, {type:'array', cellDates:false});
+  const need = ['01_표준_권고버전마스터','02_자산RAWDATA_통합','03_호환성_Matrix',
+                '04_WAS_WEB_JDK요구','05_EOL_전환참고','07_필수SW_OS별버전'];
+  const miss = need.filter(n=>!wb.Sheets[n]);
+  if(miss.length) throw new Error('필요한 시트가 없습니다 · ' + miss.join(', '));
+
+  /* 01 표준 */
+  const std = ffill(rowsOf(wb,'01_표준_권고버전마스터',5), [0,1])
+    .filter(r=>S(r[2]) && !S(r[2]).startsWith('※'))
+    .map(r=>({
+      fam: baseFamily(S(r[0])), base:S(r[0]), layer:S(r[1]), prod:S(r[2]),
+      canon: canon(S(r[2])), std:S(r[3]), floor:S(r[4]),
+      jdk:S(r[5]), eos:S(r[6]), note:S(r[7]),
+    }));
+  const sidx = {};
+  std.forEach(s=>{ const k = s.fam+'|'+s.canon; if(!(k in sidx)) sidx[k]=s; });
+
+  /* 02 자산 */
+  const raw = rowsOf(wb,'02_자산RAWDATA_통합',4);
+  const JUNK_ENV = new Set(['DBMS아님','운영구분']);
+  const assets = [], invSeen = {};
+  let dropped = 0;
+  raw.forEach(r=>{
+    const id = S(r[0]);
+    if(!id || id.startsWith('※')) return;
+    const layer = S(r[1]), env = S(r[2]);
+    if(layer==='계층' || JUNK_ENV.has(env)){ dropped++; return; }
+    const osRaw = S(r[5]), prod = S(r[7]), cur = S(r[9]), rec = S(r[10]);
+    const eos = S(r[12]), upd = S(r[13]), reason = S(r[14]);
+    const fam = osFamily(osRaw), cn = canon(prod);
+    const v = verdict(eos, upd);
+    const srow = sidx[fam+'|'+cn];
+    const floor = srow ? srow.floor : '';
+    const stdv  = srow ? srow.std   : '';
+    let below = '';
+    if(floor && cur){
+      const c = vcmp(cur, floor);
+      below = c===-1 ? '미달' : (c!==null ? '충족' : '');
+    }
+    if(rec && cur && sameLine(rec,cur) && vcmp(rec,cur)===-1){
+      const k = cn+'|'+cur+'|'+rec;
+      invSeen[k] = (invSeen[k]||0)+1;
+    }
+    assets.push([id, layer, env, S(r[4]), osRaw, fam, osShort(osRaw),
+                 prod, cn, S(r[8]), cur, rec, S(r[11]), eos, upd, reason,
+                 S(r[6]), v, prio(v,eos,reason), floor, stdv, below]);
+  });
+
+  const inversions = Object.entries(invSeen)
+    .map(([k,n])=>{ const p=k.split('|'); return {prod:p[0], cur:p[1], rec:p[2], n}; })
+    .sort((a,b)=>b.n-a.n);
+
+  /* 03 호환성 */
+  const compat = ffill(rowsOf(wb,'03_호환성_Matrix',5), [0,1])
+    .filter(r=>S(r[2]) && !S(r[2]).startsWith('범례'))
+    .map(r=>({
+      cat:S(r[0]), prod:S(r[1]), canon:canon(S(r[1])), ver:S(r[2]),
+      syms:[3,4,5,6,7,8].map(i=>S(r[i])||'?'), note:S(r[9]),
+    }));
+
+  /* 04 JDK */
+  const jdk = rowsOf(wb,'04_WAS_WEB_JDK요구',4)
+    .filter(r=>S(r[1]) && !S(r[1]).startsWith('※'))
+    .map(r=>({ prod:S(r[1]), canon:canon(S(r[1]).replace(/[\d.\s]+$/,'')),
+               min:S(r[2]), rec:S(r[3]), obs:S(r[4]), note:S(r[5]) }));
+
+  /* 05 EOL */
+  const eol = rowsOf(wb,'05_EOL_전환참고',4)
+    .filter(r=>S(r[1]) && !S(r[1]).startsWith('※'))
+    .map(r=>({ prod:S(r[1]), canon:canon(S(r[1])), ver:S(r[2]),
+               eos:S(r[3]), state:S(r[4]), action:S(r[5]) }));
+
+  /* 07 필수SW */
+  const sw7 = rowsOf(wb,'07_필수SW_OS별버전',4);
+  const swNames = (sw7[0]||[]).slice(7).map(S).filter(Boolean);
+  const sw = sw7.slice(1)
+    .filter(r=>S(r[0]) && !S(r[0]).startsWith('※'))
+    .map(r=>({ os:S(r[0]), ver:S(r[1]), patch:S(r[2]), state:S(r[3]),
+               eos:S(r[4]), next:S(r[5]), prio:S(r[6]),
+               sw: swNames.map((_,i)=>S(r[7+i])) }));
+
+  /* 데이터 품질 */
+  const dq = [];
+  const pick = f => assets.filter(f).map(a=>a[0]);
+  const noVer = pick(a=>!cleanVer(a[10]));
+  const noOS  = pick(a=>!a[4]);
+  const noRec = pick(a=>!a[11]);
+  if(noVer.length) dq.push({k:'현재버전 형식 불량·미기재', n:noVer.length,
+    ex:noVer.slice(0,6), why:'버전 대조·역전 판정에서 제외됩니다.'});
+  if(noOS.length)  dq.push({k:'OS 미기재', n:noOS.length,
+    ex:noOS.slice(0,6), why:'OS 기반 표준 매칭이 불가합니다.'});
+  if(noRec.length) dq.push({k:'권고버전 미기재', n:noRec.length,
+    ex:noRec.slice(0,6), why:'전환 목표가 지정되지 않았습니다.'});
+
+  const d = new Date(), p2 = n=>String(n).padStart(2,'0');
+  return {
+    meta:{ src:'브라우저 업로드', dept:'인프라운영파트',
+           docno:'ITS-VER-2026-MASTER', nAsset:assets.length, nDropped:dropped,
+           built:`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}` },
+    std, assets, compat, compatCols:COMPAT_COLS,
+    jdk, eol, swNames, sw, inversions, dq,
+  };
+}
+
+/* ── 자산 1건 재계산 (편집 시) ── */
+function recalc(row, std){
+  const fam = osFamily(row[4]);
+  const cn  = canon(row[7]);
+  row[5] = fam;
+  row[6] = osShort(row[4]);
+  row[8] = cn;
+  const s = std.find(x=>x.fam===fam && x.canon===cn);
+  row[19] = s ? s.floor : '';
+  row[20] = s ? s.std : '';
+  row[21] = '';
+  if(row[19] && row[10]){
+    const c = vcmp(row[10], row[19]);
+    row[21] = c===-1 ? '미달' : (c!==null ? '충족' : '');
+  }
+  row[17] = verdict(row[13], row[14]);
+  row[18] = prio(row[17], row[13], row[15]);
+  return row;
+}
+
+/* ── 역전·품질 재집계 ── */
+function reaggregate(D){
+  const seen = {};
+  D.assets.forEach(a=>{
+    if(a[11] && a[10] && sameLine(a[11],a[10]) && vcmp(a[11],a[10])===-1){
+      const k = a[8]+'|'+a[10]+'|'+a[11];
+      seen[k] = (seen[k]||0)+1;
+    }
+  });
+  D.inversions = Object.entries(seen)
+    .map(([k,n])=>{ const p=k.split('|'); return {prod:p[0],cur:p[1],rec:p[2],n}; })
+    .sort((a,b)=>b.n-a.n);
+  const dq = [];
+  const pick = f => D.assets.filter(f).map(a=>a[0]);
+  const nv = pick(a=>!cleanVer(a[10])), no = pick(a=>!a[4]), nr = pick(a=>!a[11]);
+  if(nv.length) dq.push({k:'현재버전 형식 불량·미기재', n:nv.length, ex:nv.slice(0,6), why:'버전 대조·역전 판정에서 제외됩니다.'});
+  if(no.length) dq.push({k:'OS 미기재', n:no.length, ex:no.slice(0,6), why:'OS 기반 표준 매칭이 불가합니다.'});
+  if(nr.length) dq.push({k:'권고버전 미기재', n:nr.length, ex:nr.slice(0,6), why:'전환 목표가 지정되지 않았습니다.'});
+  D.dq = dq;
+  D.meta.nAsset = D.assets.length;
+  return D;
+}
+
+/* ── 엑셀로 내보내기 (편집 결과 반영) ── */
+function toWorkbook(D){
+  const wb = XLSX.utils.book_new();
+
+  const a1 = [['자산ID','계층','운영구분','서버명','업무/시스템','OS','이중화',
+               '제품·종류','JDK버전','현재버전','권고버전','EOS일시','EOS여부',
+               '업데이트가능','사유','비고']];
+  const head = [[`인프라 표준화 자산 원장 — ${D.meta.built} 내보내기`],
+                ['서버명은 비식별 처리되어 공란입니다.'], []];
+  const body = D.assets.map(r=>[r[0],r[1],r[2],'',r[3],r[4],r[16],
+                                r[7],r[9],r[10],r[11],r[12],r[13],r[14],r[15],'']);
+  const ws2 = XLSX.utils.aoa_to_sheet(head.concat(a1, body));
+  ws2['!cols'] = [{wch:10},{wch:7},{wch:9},{wch:10},{wch:16},{wch:24},{wch:8},
+                  {wch:16},{wch:13},{wch:14},{wch:20},{wch:12},{wch:8},
+                  {wch:10},{wch:36},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws2, '02_자산RAWDATA_통합');
+
+  const s1 = [['OS 기반','계층','제품','표준 지정버전','표준 하한(≥)',
+               '권고 JDK','EOS/EOL(참고)','OS별 제약 · 비고']];
+  const sh = [['OS 기반별 표준 권고버전 마스터'],[''],[]];
+  const sb = D.std.map(s=>[s.base,s.layer,s.prod,s.std,s.floor,s.jdk,s.eos,s.note]);
+  const ws1 = XLSX.utils.aoa_to_sheet(sh.concat(s1, sb));
+  ws1['!cols'] = [{wch:14},{wch:10},{wch:24},{wch:18},{wch:14},{wch:14},{wch:14},{wch:44}];
+  XLSX.utils.book_append_sheet(wb, ws1, '01_표준_권고버전마스터');
+
+  const ch = [['제품 × OS 호환성'],[''],[],
+              ['분류','제품','버전',...D.compatCols,'제약 · 비고']];
+  const cb = D.compat.map(c=>[c.cat,c.prod,c.ver,...c.syms,c.note]);
+  const ws3 = XLSX.utils.aoa_to_sheet(ch.concat(cb));
+  XLSX.utils.book_append_sheet(wb, ws3, '03_호환성_Matrix');
+
+  const jh = [['WAS·WEB 요구 JDK'],[''],[],
+              ['','제품 · 버전','최소 JDK','권고 JDK','운영 JDK(관측)','비고']];
+  const jb = D.jdk.map(j=>['',j.prod,j.min,j.rec,j.obs,j.note]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(jh.concat(jb)), '04_WAS_WEB_JDK요구');
+
+  const eh = [['EOL · 전환 참고'],[''],[],
+              ['','제품','버전','EOS','상태','전환 권고']];
+  const eb = D.eol.map(e=>['',e.prod,e.ver,e.eos,e.state,e.action]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(eh.concat(eb)), '05_EOL_전환참고');
+
+  const wh = [['OS별 필수 소프트웨어 버전'],[''],[],
+              ['OS명','버전','패치','상태','EOS날짜','후속 권고','우선순위',...D.swNames]];
+  const wbd = D.sw.map(s=>[s.os,s.ver,s.patch,s.state,s.eos,s.next,s.prio,...s.sw]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wh.concat(wbd)), '07_필수SW_OS별버전');
+
+  return wb;
+}
+
+return { parseWorkbook, recalc, reaggregate, toWorkbook,
+         canon, osFamily, osShort, cleanVer, vcmp, verdict, prio };
+})();
+</script>
